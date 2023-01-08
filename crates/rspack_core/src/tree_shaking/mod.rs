@@ -37,3 +37,11 @@ bitflags::bitflags! {
       const DYNAMIC_IMPORT = 1 << 3;
   }
 }
+
+bitflags::bitflags! {
+  pub struct UsedType: u8 {
+    const DIRECT = 1 << 0;
+    const INDIRECT = 1 << 1;
+    const REEXPORT = 1 << 2;
+  }
+}
