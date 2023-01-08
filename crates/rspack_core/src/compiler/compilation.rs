@@ -13,7 +13,7 @@ use std::{
 use dashmap::DashSet;
 use futures::{stream::FuturesUnordered, StreamExt};
 use indexmap::IndexSet;
-use petgraph::{algo, prelude::GraphMap, Directed};
+use petgraph::{algo, graphmap::DiGraphMap, prelude::GraphMap, Directed};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use rspack_error::{
   errors_to_diagnostics, internal_error, Diagnostic, Error, IntoTWithDiagnosticArray, Result,
@@ -32,6 +32,7 @@ use crate::{
   contextify, is_source_equal, join_string_component, resolve_module_type_by_uri,
   split_chunks::code_splitting,
   tree_shaking::{
+    symbol_graph::SymbolGraph,
     visitor::{ModuleRefAnalyze, SymbolRef, TreeShakingResult},
     BailoutFlog, OptimizeDependencyResult, UsedType,
   },
@@ -793,6 +794,7 @@ impl Compilation {
     // dbg!(&used_symbol_ref);
 
     // calculate relation of module that has `export * from 'xxxx'`
+    let mut symbol_graph = SymbolGraph::new();
     let inherit_export_ref_graph = create_inherit_graph(&analyze_results);
     // key is the module_id of module that potential have reexport all symbol from other module
     // value is the set which contains several module_id the key related module need to inherit
@@ -853,6 +855,7 @@ impl Compilation {
       &inherit_export_ref_graph,
       &mut traced_tuple,
       &self.options,
+      &mut symbol_graph,
       &mut errors,
     );
 
@@ -870,6 +873,7 @@ impl Compilation {
         &inherit_export_ref_graph,
         &mut traced_tuple,
         &self.options,
+        &mut symbol_graph,
         &mut errors,
       );
       used_symbol.extend(used_symbol_set);
@@ -896,6 +900,7 @@ impl Compilation {
           &inherit_export_ref_graph,
           &mut traced_tuple,
           &self.options,
+          &mut symbol_graph,
           &mut errors,
         );
         used_symbol.extend(used_symbol_set);
@@ -922,6 +927,10 @@ impl Compilation {
             continue;
           }
         };
+        // let used = used_export_module_identifiers
+        //   .get(&analyze_result.module_identifier)
+        //   .map(|value| value.contains(UsedType::DIRECT))
+        //   .unwrap_or(false);
         let used = used_export_module_identifiers.contains_key(&analyze_result.module_identifier);
 
         if !used
@@ -1352,6 +1361,7 @@ fn collect_reachable_symbol(
   inherit_extend_graph: &GraphMap<Ustr, (), Directed>,
   traced_tuple: &mut HashSet<(Ustr, Ustr)>,
   options: &Arc<CompilerOptions>,
+  graph: &mut SymbolGraph,
   errors: &mut Vec<Error>,
 ) -> HashSet<Symbol> {
   let mut used_symbol_set = HashSet::default();
@@ -1411,6 +1421,7 @@ fn collect_reachable_symbol(
       inherit_extend_graph,
       traced_tuple,
       options,
+      graph,
       errors,
     );
   }
@@ -1428,6 +1439,7 @@ fn collect_reachable_symbol(
       inherit_extend_graph,
       traced_tuple,
       options,
+      graph,
       errors,
     );
   }
@@ -1445,6 +1457,7 @@ fn mark_used_symbol_with(
   inherit_extend_graph: &GraphMap<Ustr, (), Directed>,
   traced_tuple: &mut HashSet<(Ustr, Ustr)>,
   options: &Arc<CompilerOptions>,
+  graph: &mut SymbolGraph,
   errors: &mut Vec<Error>,
 ) -> HashSet<Symbol> {
   let mut used_symbol_set = HashSet::default();
@@ -1468,6 +1481,7 @@ fn mark_used_symbol_with(
       inherit_extend_graph,
       traced_tuple,
       options,
+      graph,
       errors,
     );
   }
@@ -1487,6 +1501,7 @@ fn mark_symbol(
   inherit_extend_graph: &GraphMap<Ustr, (), Directed>,
   traced_tuple: &mut HashSet<(Ustr, Ustr)>,
   options: &Arc<CompilerOptions>,
+  graph: &mut SymbolGraph,
   errors: &mut Vec<Error>,
 ) {
   // if debug_care_module_id(symbol_ref.module_identifier()) {
@@ -1761,9 +1776,9 @@ fn get_reachable(
 }
 
 fn create_inherit_graph(
-  analyze_map: &IdentifierMap<TreeShakingResult>,
-) -> GraphMap<ModuleIdentifier, (), petgraph::Directed> {
-  let mut g = petgraph::graphmap::DiGraphMap::new();
+  analyze_map: &HashMap<Ustr, TreeShakingResult>,
+) -> GraphMap<Ustr, (), petgraph::Directed> {
+  let mut g = DiGraphMap::new();
   for (module_id, result) in analyze_map.iter() {
     for export_all_module_id in result.inherit_export_maps.keys() {
       g.add_edge(*module_id, *export_all_module_id, ());
