@@ -13,7 +13,13 @@ use std::{
 use dashmap::DashSet;
 use futures::{stream::FuturesUnordered, StreamExt};
 use indexmap::IndexSet;
-use petgraph::{algo, graphmap::DiGraphMap, prelude::GraphMap, Directed};
+use petgraph::{
+  algo,
+  dot::{Config, Dot},
+  graphmap::DiGraphMap,
+  prelude::GraphMap,
+  Directed,
+};
 use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use rspack_error::{
   errors_to_diagnostics, internal_error, Diagnostic, Error, IntoTWithDiagnosticArray, Result,
@@ -34,7 +40,7 @@ use crate::{
   tree_shaking::{
     symbol_graph::SymbolGraph,
     visitor::{ModuleRefAnalyze, SymbolRef, TreeShakingResult},
-    BailoutFlog, OptimizeDependencyResult, UsedType,
+    BailoutFlog, ModuleUsedType, OptimizeDependencyResult,
   },
   AddQueue, AddTask, AddTaskResult, AdditionalChunkRuntimeRequirementsArgs, BuildQueue, BuildTask,
   BuildTaskResult, BundleEntries, Chunk, ChunkByUkey, ChunkGraph, ChunkGroup, ChunkGroupUkey,
@@ -787,7 +793,7 @@ impl Compilation {
       // side_effects: true
       if forced_side_effects || !analyze_result.side_effects_free {
         evaluated_module_identifiers.insert(analyze_result.module_identifier);
-        used_symbol_ref.extend(analyze_result.used_symbol_ref.iter().cloned());
+        used_symbol_ref.extend(analyze_result.used_symbol_refs.iter().cloned());
       }
       // merge bailout module identifier
       for (k, &v) in analyze_result.bail_out_module_identifiers.iter() {
@@ -854,7 +860,8 @@ impl Compilation {
     let mut errors = vec![];
     let mut used_symbol = HashSet::new();
     let mut used_indirect_symbol: HashSet<IndirectTopLevelSymbol> = HashSet::new();
-    let mut used_export_module_identifiers: IdentifierMap<UsedType> = IdentifierMap::default();
+    let mut used_export_module_identifiers: IdentifierMap<ModuleUsedType> =
+      IdentifierMap::default();
     let mut traced_tuple = HashSet::new();
     // Marking used symbol and all reachable export symbol from the used symbol for each module
     let used_symbol_from_import = mark_used_symbol_with(
@@ -918,6 +925,9 @@ impl Compilation {
         used_symbol.extend(used_symbol_set);
       };
     }
+
+    dbg!(&used_export_module_identifiers);
+    // println!("{:?}", Dot::new(&symbol_graph.graph,));
 
     if side_effects_analyze {
       // pruning
@@ -1369,7 +1379,7 @@ fn collect_reachable_symbol(
   used_indirect_symbol: &mut HashSet<IndirectTopLevelSymbol>,
   bailout_module_identifiers: &IdentifierMap<BailoutFlog>,
   evaluated_module_identifiers: &mut IdentifierSet,
-  used_export_module_identifiers: &mut IdentifierMap<UsedType>,
+  used_export_module_identifiers: &mut IdentifierMap<ModuleUsedType>,
   inherit_extend_graph: &GraphMap<ModuleIdentifier, (), Directed>,
   traced_tuple: &mut HashSet<(ModuleIdentifier, ModuleIdentifier)>,
   options: &Arc<CompilerOptions>,
@@ -1465,7 +1475,7 @@ fn mark_used_symbol_with(
   bailout_module_identifiers: &IdentifierMap<BailoutFlog>,
   evaluated_module_identifiers: &mut IdentifierSet,
   used_indirect_symbol_set: &mut HashSet<IndirectTopLevelSymbol>,
-  used_export_module_identifiers: &mut IdentifierMap<UsedType>,
+  used_export_module_identifiers: &mut IdentifierMap<ModuleUsedType>,
   inherit_extend_graph: &GraphMap<ModuleIdentifier, (), Directed>,
   traced_tuple: &mut HashSet<(ModuleIdentifier, ModuleIdentifier)>,
   options: &Arc<CompilerOptions>,
@@ -1502,14 +1512,14 @@ fn mark_used_symbol_with(
 
 #[allow(clippy::too_many_arguments)]
 fn mark_symbol(
-  symbol_ref: SymbolRef,
+  current_symbol_ref: SymbolRef,
   used_symbol_set: &mut HashSet<Symbol>,
   used_indirect_symbol_set: &mut HashSet<IndirectTopLevelSymbol>,
   analyze_map: &IdentifierMap<TreeShakingResult>,
-  q: &mut VecDeque<SymbolRef>,
+  symbol_queue: &mut VecDeque<SymbolRef>,
   bailout_module_identifiers: &IdentifierMap<BailoutFlog>,
   evaluated_module_identifiers: &mut IdentifierSet,
-  used_export_module_identifiers: &mut IdentifierMap<UsedType>,
+  used_export_module_identifiers: &mut IdentifierMap<ModuleUsedType>,
   inherit_extend_graph: &GraphMap<ModuleIdentifier, (), Directed>,
   traced_tuple: &mut HashSet<(ModuleIdentifier, ModuleIdentifier)>,
   options: &Arc<CompilerOptions>,
@@ -1522,33 +1532,37 @@ fn mark_symbol(
   // We don't need mark the symbol usage if it is from a bailout module because
   // bailout module will skipping tree-shaking anyway
   let is_bailout_module_identifier =
-    bailout_module_identifiers.contains_key(&symbol_ref.module_identifier());
-  match &symbol_ref {
+    bailout_module_identifiers.contains_key(&current_symbol_ref.module_identifier());
+  match &current_symbol_ref {
     SymbolRef::Direct(symbol) => {
       merge_used_export_type(
         used_export_module_identifiers,
         symbol.uri().into(),
-        UsedType::DIRECT,
+        ModuleUsedType::DIRECT,
       );
     }
     SymbolRef::Indirect(indirect) => {
       merge_used_export_type(
         used_export_module_identifiers,
         indirect.uri().into(),
-        UsedType::INDIRECT,
+        ModuleUsedType::INDIRECT,
       );
     }
     _ => {}
   };
-  match symbol_ref {
-    SymbolRef::Direct(symbol) => {
-      if !used_symbol_set.contains(&symbol) {
-        let module_result = analyze_map.get(&symbol.uri().into()).expect("TODO:");
+  match current_symbol_ref {
+    SymbolRef::Direct(ref symbol) => match used_symbol_set.entry(symbol.clone()) {
+      Occupied(_) => {}
+      Vacant(vac) => {
+        let module_result = analyze_map.get(&vac.get().uri().into()).expect("TODO:");
         if let Some(set) = module_result
           .reachable_import_of_export
           .get(&symbol.id().atom)
         {
-          q.extend(set.iter().cloned());
+          for symbol_ref_ele in set.iter() {
+            graph.add_edge(&current_symbol_ref, symbol_ref_ele);
+            symbol_queue.push_back(symbol_ref_ele.clone());
+          }
         };
         // Assume the module name is app.js
         // ```js
@@ -1559,24 +1573,31 @@ fn mark_symbol(
         // one for `app.js`, one for `lib.js`
         // the binding in `app.js` used for shake the `export {xxx}`
         // In other words, we need two binding for supporting indirect redirect.
-        if let Some(symbol_ref) = module_result.import_map.get(symbol.id()) {
-          q.push_back(symbol_ref.clone());
+        if let Some(import_symbol_ref) = module_result.import_map.get(vac.get().id()) {
+          graph.add_edge(&current_symbol_ref, import_symbol_ref);
+          symbol_queue.push_back(import_symbol_ref.clone());
         }
-        if !evaluated_module_identifiers.contains(&symbol.uri().into()) {
-          evaluated_module_identifiers.insert(symbol.uri().into());
-          q.extend(module_result.used_symbol_ref.clone());
+        if !evaluated_module_identifiers.contains(&vac.get().uri().into()) {
+          evaluated_module_identifiers.insert(vac.get().uri().into());
+          for used_symbol_ref in module_result.used_symbol_refs.iter() {
+            graph.add_edge(&current_symbol_ref, used_symbol_ref);
+            symbol_queue.push_back(used_symbol_ref.clone());
+          }
         }
         used_symbol_set.insert(symbol);
       }
-    }
-    SymbolRef::Indirect(indirect_symbol) => {
+    },
+    SymbolRef::Indirect(ref indirect_symbol) => {
       let importer = indirect_symbol.importer();
       if indirect_symbol.ty == IndirectType::ReExport
         && !evaluated_module_identifiers.contains(&importer.into())
       {
         evaluated_module_identifiers.insert(importer.into());
         let module_result = analyze_map.get(&importer.into()).expect("TODO:");
-        q.extend(module_result.used_symbol_ref.clone());
+        for used_symbol in module_result.used_symbol_refs.iter() {
+          graph.add_edge(&current_symbol_ref, used_symbol);
+          symbol_queue.push_back(used_symbol.clone());
+        }
       }
       used_indirect_symbol_set.insert(indirect_symbol.clone());
       let module_result = match analyze_map.get(&indirect_symbol.uri.into()) {
@@ -1613,7 +1634,11 @@ fn mark_symbol(
                   .into_iter()
                   .flatten()
                   {
-                    merge_used_export_type(used_export_module_identifiers, mi, UsedType::REEXPORT);
+                    merge_used_export_type(
+                      used_export_module_identifiers,
+                      mi,
+                      ModuleUsedType::REEXPORT,
+                    );
                   }
                   // used_export_module_identifiers.extend();
                   traced_tuple.insert(tuple);
@@ -1628,7 +1653,10 @@ fn mark_symbol(
           // FIXME: this is just a workaround for dependency replacement
           if !ret.is_empty() && !evaluated_module_identifiers.contains(&indirect_symbol.uri.into())
           {
-            q.extend(module_result.used_symbol_ref.clone());
+            for used_symbol_ref in module_result.used_symbol_refs.iter() {
+              graph.add_edge(&current_symbol_ref, used_symbol_ref);
+              symbol_queue.push_back(used_symbol_ref.clone());
+            }
             evaluated_module_identifiers.insert(indirect_symbol.uri().into());
           }
           match ret.len() {
@@ -1679,7 +1707,9 @@ fn mark_symbol(
           }
         }
       };
-      q.push_back(symbol);
+
+      graph.add_edge(&current_symbol_ref, &symbol);
+      symbol_queue.push_back(symbol);
     }
     SymbolRef::Star(src) => {
       // If a star ref is used. e.g.
@@ -1724,29 +1754,30 @@ fn mark_symbol(
         }
       };
       evaluated_module_identifiers.insert(src);
-      // used_export_module_identifiers.insert();
-      merge_used_export_type(used_export_module_identifiers, src, UsedType::DIRECT);
+      merge_used_export_type(used_export_module_identifiers, src, ModuleUsedType::DIRECT);
 
-      for symbol_ref in analyze_refsult.export_map.values() {
-        q.push_back(symbol_ref.clone());
+      for export_symbol_ref in analyze_refsult.export_map.values() {
+        graph.add_edge(&current_symbol_ref, export_symbol_ref);
+        symbol_queue.push_back(export_symbol_ref.clone());
       }
 
-      for (_, extend_map) in analyze_refsult.inherit_export_maps.iter() {
-        for s in extend_map.values() {
-          q.push_back(s.clone());
-          let tuple = (src, s.module_identifier());
+      for (_, extend_export_map) in analyze_refsult.inherit_export_maps.iter() {
+        for export_symbol_ref in extend_export_map.values() {
+          graph.add_edge(&current_symbol_ref, export_symbol_ref);
+          symbol_queue.push_back(export_symbol_ref.clone());
+          let tuple = (src, export_symbol_ref.module_identifier());
           if !traced_tuple.contains(&tuple) {
             for mi in algo::all_simple_paths::<Vec<_>, _>(
               &inherit_extend_graph,
               src,
-              s.module_identifier(),
+              export_symbol_ref.module_identifier(),
               0,
               None,
             )
             .into_iter()
             .flatten()
             {
-              merge_used_export_type(used_export_module_identifiers, mi, UsedType::REEXPORT);
+              merge_used_export_type(used_export_module_identifiers, mi, ModuleUsedType::REEXPORT);
             }
             traced_tuple.insert(tuple);
           }
@@ -1766,6 +1797,7 @@ fn get_extends_map(
   }
   map
 }
+
 fn get_reachable(
   start: ModuleIdentifier,
   g: &GraphMap<ModuleIdentifier, (), petgraph::Directed>,
@@ -1800,9 +1832,9 @@ fn create_inherit_graph(
 }
 
 pub fn merge_used_export_type(
-  used_export: &mut IdentifierMap<UsedType>,
+  used_export: &mut IdentifierMap<ModuleUsedType>,
   module_id: ModuleIdentifier,
-  ty: UsedType,
+  ty: ModuleUsedType,
 ) {
   match used_export.entry(module_id) {
     Entry::Occupied(mut occ) => {
