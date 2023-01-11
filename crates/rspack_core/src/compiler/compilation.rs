@@ -976,7 +976,9 @@ impl Compilation {
           let node_index = *match symbol_graph.get_node_index(symbol_ref) {
             Some(node_index) => node_index,
             None => {
-              eprintln!("Can't get symbol for {:?}", symbol_ref);
+              if !bail_out_module_identifiers.contains_key(&symbol_ref.module_identifier()) {
+                eprintln!("Can't get symbol for {:?}", symbol_ref);
+              }
               continue;
             }
           };
@@ -996,7 +998,9 @@ impl Compilation {
             let node_index = *match symbol_graph.get_node_index(symbol_ref) {
               Some(node_index) => node_index,
               None => {
-                eprintln!("Can't get symbol for {:?}", symbol_ref);
+                if !bail_out_module_identifiers.contains_key(&symbol_ref.module_identifier()) {
+                  eprintln!("Can't get symbol for {:?}", symbol_ref);
+                }
                 continue;
               }
             };
@@ -1030,7 +1034,9 @@ impl Compilation {
             let node_index = *match symbol_graph.get_node_index(&symbol_ref) {
               Some(node_index) => node_index,
               None => {
-                eprintln!("Can't get symbol for {:?}", symbol_ref);
+                if !bail_out_module_identifiers.contains_key(&symbol_ref.module_identifier()) {
+                  eprintln!("Can't get symbol for {:?}", symbol_ref);
+                }
                 continue;
               }
             };
