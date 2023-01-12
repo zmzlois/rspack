@@ -8,6 +8,7 @@ use std::{
   path::PathBuf,
   pin::Pin,
   sync::Arc,
+  vec,
 };
 
 use dashmap::DashSet;
@@ -29,7 +30,7 @@ use rspack_error::{
   Severity, TWithDiagnosticArray,
 };
 use rspack_sources::{BoxSource, CachedSource, SourceExt};
-use rspack_symbol::{IndirectTopLevelSymbol, IndirectType, Symbol};
+use rspack_symbol::{IndirectTopLevelSymbol, IndirectType, StarSymbol, StarSymbolKind, Symbol};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHasher};
 use swc_core::ecma::atoms::JsWord;
 use tokio::sync::mpsc::error::TryRecvError;
@@ -922,7 +923,7 @@ impl Compilation {
       };
     }
 
-    dbg!(&used_export_module_identifiers);
+    // dbg!(&used_export_module_identifiers);
     println!("{:?}", Dot::new(&symbol_graph.graph,));
 
     // println!("{}", used_export_module_identifiers.len());
@@ -933,10 +934,11 @@ impl Compilation {
 
     // dbg!(&direct_used);
 
-    for symbol_ref in symbol_graph.symbol_refs()
-    // .filter(|s| matches!(s, SymbolRef::Direct(_)))
+    for symbol_ref in symbol_graph
+      .symbol_refs()
+      .filter(|s| matches!(s, SymbolRef::Direct(_)))
     {
-      println!("----------------");
+      // println!("----------------");
 
       let node_index = *symbol_graph.get_node_index(symbol_ref).unwrap();
       let mut paths = Vec::new();
@@ -956,12 +958,14 @@ impl Compilation {
             .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
+      // dbg!(&symbol_paths);
       // sliding window
       for symbol_path in symbol_paths {
         let start = 0;
         let end = start + 1;
+        // while end < symbol_path.len() {}
       }
-      println!("end ----------------");
+      // println!("end ----------------");
     }
 
     if side_effects_analyze {
@@ -1020,7 +1024,7 @@ impl Compilation {
             Some(node_index) => node_index,
             None => {
               if !bail_out_module_identifiers.contains_key(&symbol_ref.module_identifier()) {
-                eprintln!("Can't get symbol for {:?}", symbol_ref);
+                eprintln!("(used symbol) Can't get symbol for {:?}", symbol_ref);
               }
               continue;
             }
@@ -1741,10 +1745,15 @@ fn mark_symbol(
         }
       };
       let symbol = match module_result.export_map.get(&indirect_symbol.id) {
-        Some(symbol) => symbol.clone(),
+        Some(symbol) => {
+          graph.add_edge(&current_symbol_ref, &symbol);
+          symbol.clone()
+        }
+
         None => {
           // TODO: better diagnostic and handle if multiple extends_map has export same symbol
           let mut ret = vec![];
+          // let mut final_node_of_path = vec![];
           // Checking if any inherit export map is belong to a bailout module
           let mut has_bailout_module_identifiers = false;
           let mut is_first_result = true;
@@ -1754,7 +1763,7 @@ fn mark_symbol(
               if is_first_result {
                 let tuple = (indirect_symbol.uri.into(), *module_identifier);
                 if !traced_tuple.contains(&tuple) {
-                  for mi in algo::all_simple_paths::<Vec<_>, _>(
+                  for paths in algo::all_simple_paths::<Vec<_>, _>(
                     &inherit_extend_graph,
                     indirect_symbol.uri.into(),
                     *module_identifier,
@@ -1762,13 +1771,27 @@ fn mark_symbol(
                     None,
                   )
                   .into_iter()
-                  .flatten()
                   {
-                    merge_used_export_type(
-                      used_export_module_identifiers,
-                      mi,
-                      ModuleUsedType::REEXPORT,
-                    );
+                    // let mut from = SymbolRef::Indirect(indirect_symbol.clone());
+                    // for i in 0..paths.len() - 1 {
+                    //   let star_symbol = StarSymbol {
+                    //     src: paths[i + 1].into(),
+                    //     binding: Default::default(),
+                    //     module_ident: paths[i].into(),
+                    //     ty: StarSymbolKind::ReExportAll,
+                    //   };
+                    //   let to = SymbolRef::Star(star_symbol);
+                    //   graph.add_edge(&from, &to);
+                    //   from = to;
+                    // }
+                    // final_node_of_path.push(from);
+                    for mi in paths.iter() {
+                      merge_used_export_type(
+                        used_export_module_identifiers,
+                        *mi,
+                        ModuleUsedType::REEXPORT,
+                      );
+                    }
                   }
                   // used_export_module_identifiers.extend();
                   traced_tuple.insert(tuple);
@@ -1789,7 +1812,7 @@ fn mark_symbol(
             }
             evaluated_module_identifiers.insert(indirect_symbol.uri().into());
           }
-          match ret.len() {
+          let selected_symbol = match ret.len() {
             0 => {
               // TODO: Better diagnostic handle if source module does not have the export
               // let map = analyze_map.get(&module_result.module_identifier).expect("TODO:");
@@ -1834,14 +1857,18 @@ fn mark_symbol(
               ));
               ret[0].1.clone()
             }
-          }
+          };
+          // for from in final_node_of_path {
+          //   symbol_graph.add_edge(&from, &selected_symbol);
+          // }
+          selected_symbol
         }
       };
-
       graph.add_edge(&current_symbol_ref, &symbol);
+
       symbol_queue.push_back(symbol);
     }
-    SymbolRef::Star(src) => {
+    SymbolRef::Star(ref star_symbol) => {
       // If a star ref is used. e.g.
       // ```js
       // import * as all from './test.js'
@@ -1851,10 +1878,10 @@ fn mark_symbol(
       // export defined in `test.js` and all realted
       // reexport should be marked as used
 
-      let analyze_refsult = match analyze_map.get(&src) {
+      let analyze_refsult = match analyze_map.get(&star_symbol.src.into()) {
         Some(analyze_result) => analyze_result,
         None => {
-          match resolve_module_type_by_uri(src.as_str()) {
+          match resolve_module_type_by_uri(star_symbol.src.as_str()) {
             Some(module_type) => match module_type {
               crate::ModuleType::Js
               | crate::ModuleType::JsDynamic
@@ -1864,7 +1891,7 @@ fn mark_symbol(
               | crate::ModuleType::JsxEsm
               | crate::ModuleType::Tsx
               | crate::ModuleType::Ts => {
-                let error_message = format!("Can't get analyze result of {src}");
+                let error_message = format!("Can't get analyze result of {0}", star_symbol.src);
                 errors.push(Error::InternalError(
                   internal_error!(error_message).with_severity(Severity::Warn),
                 ));
@@ -1874,7 +1901,7 @@ fn mark_symbol(
               }
             },
             None => {
-              let error_message = format!("Can't get analyze result of {src}");
+              let error_message = format!("Can't get analyze result of {0}", star_symbol.src);
               errors.push(Error::InternalError(
                 internal_error!(error_message).with_severity(Severity::Warn),
               ));
@@ -1883,9 +1910,13 @@ fn mark_symbol(
           return;
         }
       };
-      evaluated_module_identifiers.insert(src);
+      evaluated_module_identifiers.insert(star_symbol.src.into());
       if !analyze_refsult.export_map.is_empty() {
-        merge_used_export_type(used_export_module_identifiers, src, ModuleUsedType::DIRECT);
+        merge_used_export_type(
+          used_export_module_identifiers,
+          star_symbol.src.into(),
+          ModuleUsedType::DIRECT,
+        );
       }
 
       for export_symbol_ref in analyze_refsult.export_map.values() {
@@ -1897,19 +1928,39 @@ fn mark_symbol(
         for export_symbol_ref in extend_export_map.values() {
           graph.add_edge(&current_symbol_ref, export_symbol_ref);
           symbol_queue.push_back(export_symbol_ref.clone());
-          let tuple = (src, export_symbol_ref.module_identifier());
+          let tuple = (
+            star_symbol.src.into(),
+            export_symbol_ref.module_identifier(),
+          );
           if !traced_tuple.contains(&tuple) {
-            for mi in algo::all_simple_paths::<Vec<_>, _>(
+            let paths = algo::all_simple_paths::<Vec<_>, _>(
               &inherit_extend_graph,
-              src,
+              star_symbol.src.into(),
               export_symbol_ref.module_identifier(),
               0,
               None,
-            )
-            .into_iter()
-            .flatten()
-            {
-              merge_used_export_type(used_export_module_identifiers, mi, ModuleUsedType::REEXPORT);
+            );
+
+            for path in paths.into_iter() {
+              // let mut from = SymbolRef::Star(star_symbol.clone());
+              // for i in 0..path.len() - 1 {
+              //   let star_symbol = StarSymbol {
+              //     src: path[i + 1].into(),
+              //     binding: Default::default(),
+              //     module_ident: path[i].into(),
+              //     ty: StarSymbolKind::ReExportAll,
+              //   };
+              //   let to = SymbolRef::Star(star_symbol);
+              //   graph.add_edge(&from, &to);
+              //   from = to;
+              // }
+              for mi in path.iter() {
+                merge_used_export_type(
+                  used_export_module_identifiers,
+                  *mi,
+                  ModuleUsedType::REEXPORT,
+                );
+              }
             }
             traced_tuple.insert(tuple);
           }
@@ -1990,7 +2041,12 @@ pub fn simplify_symbol_ref(symbol_ref: &SymbolRef, context: &str) -> SymbolRef {
       importer: contextify(context, indirect.importer().as_str()).into(),
       ..indirect.clone()
     }),
-    SymbolRef::Star(star) => SymbolRef::Star(contextify(context, star.as_str()).into()),
+    SymbolRef::Star(star) => SymbolRef::Star(StarSymbol {
+      src: contextify(context, star.src.as_str()).into(),
+      binding: star.binding.clone(),
+      module_ident: star.module_ident,
+      ty: star.ty,
+    }),
   }
 }
 

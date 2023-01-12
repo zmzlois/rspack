@@ -11,6 +11,7 @@ module.exports = {
     port: 5555,
     webSocketServer: 'sockjs'
   },
+  cache: false,
   devtool: false,
   builtins: {
     html: [{
