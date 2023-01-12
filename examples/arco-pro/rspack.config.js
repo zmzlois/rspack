@@ -11,6 +11,7 @@ module.exports = {
   devServer: {
     port: 5555
   },
+  cache: false,
   devtool: false,
   builtins: {
     html: [{
