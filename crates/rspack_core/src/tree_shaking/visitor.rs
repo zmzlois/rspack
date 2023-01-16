@@ -26,8 +26,8 @@ use super::{
   BailoutFlog,
 };
 use crate::{
-  Dependency, DependencyType, IdentifierLinkedMap, IdentifierMap, ModuleGraph, ModuleIdentifier,
-  ModuleSyntax, Resolver,
+  Dependency, DependencyType, Identifier, IdentifierLinkedMap, IdentifierMap, ModuleGraph,
+  ModuleIdentifier, ModuleSyntax, Resolver,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -105,7 +105,8 @@ pub(crate) struct ModuleRefAnalyze<'a> {
   module_graph: &'a ModuleGraph,
   /// Value of `export_map` must have type [SymbolRef::Direct]
   pub(crate) export_map: HashMap<JsWord, SymbolRef>,
-  pub(crate) import_map: HashMap<BetterId, SymbolRef>,
+  pub(crate) import_symbol_map: HashMap<BetterId, SymbolRef>,
+  pub(crate) import_dependency_map: HashMap<Identifier, SymbolRef>,
   /// key is the module identifier, value is the corresponding export map
   /// This data structure is used for collecting reexport * from some module. e.g.
   /// ```js
@@ -148,7 +149,7 @@ impl<'a> ModuleRefAnalyze<'a> {
       module_identifier: uri,
       module_graph: dep_to_module_identifier,
       export_map: HashMap::default(),
-      import_map: HashMap::default(),
+      import_symbol_map: HashMap::default(),
       inherit_export_maps: LinkedHashMap::default(),
       current_body_owner_symbol_ext: None,
       maybe_lazy_reference_map: HashMap::default(),
@@ -162,6 +163,7 @@ impl<'a> ModuleRefAnalyze<'a> {
       resolver,
       side_effects_free: false,
       immediate_evaluate_reference_map: HashMap::default(),
+      import_dependency_map: HashMap::default(),
     }
   }
 
@@ -226,7 +228,7 @@ impl<'a> ModuleRefAnalyze<'a> {
       .iter()
       .filter_map(|id_or_mem_expr| match id_or_mem_expr {
         IdOrMemExpr::Id(id) => {
-          let ret = self.import_map.get(id).cloned().or_else(|| {
+          let ret = self.import_symbol_map.get(id).cloned().or_else(|| {
             if only_import {
               None
             } else {
@@ -245,15 +247,18 @@ impl<'a> ModuleRefAnalyze<'a> {
           ret
         }
         IdOrMemExpr::MemberExpr { object, property } => {
-          self.import_map.get(object).map(|sym_ref| match sym_ref {
-            SymbolRef::Direct(_) | SymbolRef::Indirect(_) => sym_ref.clone(),
-            SymbolRef::Star(uri) => SymbolRef::Indirect(IndirectTopLevelSymbol::new(
-              (*uri.src).into(),
-              property.clone(),
-              self.module_identifier.into(),
-              rspack_symbol::IndirectType::Default,
-            )),
-          })
+          self
+            .import_symbol_map
+            .get(object)
+            .map(|sym_ref| match sym_ref {
+              SymbolRef::Direct(_) | SymbolRef::Indirect(_) => sym_ref.clone(),
+              SymbolRef::Star(uri) => SymbolRef::Indirect(IndirectTopLevelSymbol::new(
+                (*uri.src).into(),
+                property.clone(),
+                self.module_identifier.into(),
+                rspack_symbol::IndirectType::Default,
+              )),
+            })
         }
       })
       .collect();
@@ -337,7 +342,7 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
                 IdOrMemExpr::MemberExpr { object, .. } => object,
               };
               // dbg!(&id);
-              let ret = self.import_map.get(id);
+              let ret = self.import_symbol_map.get(id);
               match ret {
                 Some(ret) => HashSet::from_iter([ret.clone()]),
                 None => self.get_all_import_or_export(id.clone(), true),
@@ -363,7 +368,7 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
               // TODO: inspect namespace access
               IdOrMemExpr::MemberExpr { object, .. } => object,
             };
-            let ret = self.import_map.get(id);
+            let ret = self.import_symbol_map.get(id);
             match ret {
               Some(ret) => HashSet::from_iter([ret.clone()]),
               None => self.get_all_import_or_export(id.clone(), true),
@@ -381,7 +386,7 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
           let reachable_import = self.get_all_import_or_export(id.clone(), true);
           self.used_symbol_ref.extend(reachable_import);
         }
-        IdOrMemExpr::MemberExpr { object, property } => match self.import_map.get(object) {
+        IdOrMemExpr::MemberExpr { object, property } => match self.import_symbol_map.get(object) {
           Some(SymbolRef::Star(uri)) => {
             self
               .used_symbol_ref
@@ -1011,7 +1016,7 @@ impl<'a> ModuleRefAnalyze<'a> {
   }
 
   fn add_import(&mut self, id: BetterId, symbol: SymbolRef) {
-    match self.import_map.entry(id) {
+    match self.import_symbol_map.entry(id) {
       Entry::Occupied(_) => {
         // TODO: should add some Diagnostic
       }
@@ -1194,7 +1199,7 @@ impl From<ModuleRefAnalyze<'_>> for TreeShakingResult {
       unresolved_mark: std::mem::take(&mut analyze.unresolved_mark),
       module_identifier: std::mem::take(&mut analyze.module_identifier),
       export_map: std::mem::take(&mut analyze.export_map),
-      import_map: std::mem::take(&mut analyze.import_map),
+      import_map: std::mem::take(&mut analyze.import_symbol_map),
       inherit_export_maps: std::mem::take(&mut analyze.inherit_export_maps),
       // current_region: std::mem::take(&mut analyze.current_body_owner_id),
       // reference_map: std::mem::take(&mut analyze.reference_map),

@@ -764,7 +764,7 @@ impl Compilation {
               &uri_key,
               // &analyzer.export_all_list,
               &analyzer.export_map,
-              &analyzer.import_map,
+              &analyzer.import_symbol_map,
               &analyzer.maybe_lazy_reference_map,
               &analyzer.immediate_evaluate_reference_map,
               &analyzer.reachable_import_and_export,
@@ -1365,6 +1365,9 @@ fn validate_and_insert_replacement(
       &symbol_path[end],
       SymbolRef::Star(StarSymbol {
         ty: StarSymbolKind::ImportAllAs,
+        ..
+      }) | SymbolRef::Star(StarSymbol {
+        ty: StarSymbolKind::ReExportAll,
         ..
       })
     )
