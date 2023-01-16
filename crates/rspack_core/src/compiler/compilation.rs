@@ -941,13 +941,13 @@ impl Compilation {
 
     // dbg!(&direct_used);
 
-    let dependency_replacement = update_dependency(
-      &symbol_graph,
-      &used_export_module_identifiers,
-      &bailout_module_identifiers,
-      &side_effects_free_modules,
-      &self.entry_module_identifiers,
-    );
+    // let dependency_replacement = update_dependency(
+    //   &symbol_graph,
+    //   &used_export_module_identifiers,
+    //   &bailout_module_identifiers,
+    //   &side_effects_free_modules,
+    //   &self.entry_module_identifiers,
+    // );
 
     // dbg!(&dependency_replacement);
 
@@ -1633,15 +1633,6 @@ fn mark_symbol(
   visited_symbol_ref: &mut HashSet<SymbolRef>,
   errors: &mut Vec<Error>,
 ) {
-  let is_valid = if debug_care_module_id(current_symbol_ref.module_identifier().as_str()) {
-    match current_symbol_ref {
-      SymbolRef::Direct(_) => false,
-      SymbolRef::Indirect(ref indirect) => indirect.ty == IndirectType::ReExport,
-      SymbolRef::Star(_) => false,
-    }
-  } else {
-    false
-  };
   if visited_symbol_ref.contains(&current_symbol_ref) {
     return;
   } else {
@@ -1697,7 +1688,7 @@ fn mark_symbol(
       if !evaluated_module_identifiers.contains(&symbol.uri().into()) {
         evaluated_module_identifiers.insert(symbol.uri().into());
         for used_symbol_ref in module_result.used_symbol_refs.iter() {
-          graph.add_edge(&current_symbol_ref, used_symbol_ref);
+          // graph.add_edge(&current_symbol_ref, used_symbol_ref);
           symbol_queue.push_back(used_symbol_ref.clone());
         }
       }
@@ -1724,11 +1715,26 @@ fn mark_symbol(
           return;
         }
       };
-      let symbol = match module_result.export_map.get(&indirect_symbol.id) {
-        Some(symbol) => {
-          graph.add_edge(&current_symbol_ref, &symbol);
-          symbol.clone()
-        }
+
+      match module_result.export_map.get(&indirect_symbol.id) {
+        Some(symbol) => match symbol {
+          SymbolRef::Indirect(IndirectTopLevelSymbol {
+            ty: IndirectType::ReExport,
+            id,
+            ..
+          }) => {
+            if let Some(set) = module_result.reachable_import_of_export.get(&id) {
+              for symbol_ref_ele in set.iter() {
+                graph.add_edge(&current_symbol_ref, symbol_ref_ele);
+                symbol_queue.push_back(symbol_ref_ele.clone());
+              }
+            };
+          }
+          _ => {
+            graph.add_edge(&current_symbol_ref, &symbol);
+            symbol_queue.push_back(symbol.clone());
+          }
+        },
 
         None => {
           // TODO: better diagnostic and handle if multiple extends_map has export same symbol
@@ -1855,12 +1861,10 @@ fn mark_symbol(
               ret[0].1.clone()
             }
           };
-          selected_symbol
+          symbol_queue.push_back(selected_symbol);
         }
       };
       // graph.add_edge(&current_symbol_ref, &symbol);
-
-      symbol_queue.push_back(symbol);
     }
     SymbolRef::Star(ref star_symbol) => {
       // If a star ref is used. e.g.
