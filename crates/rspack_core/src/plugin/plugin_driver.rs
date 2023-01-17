@@ -3,6 +3,7 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use futures::{stream::FuturesUnordered, StreamExt};
 use rayon::prelude::*;
 use rspack_error::{Diagnostic, Result};
 use rspack_loader_runner::ResourceData;
@@ -181,21 +182,40 @@ impl PluginDriver {
     args: RenderManifestArgs<'_>,
   ) -> PluginRenderManifestHookOutput {
     let mut assets = vec![];
-    for plugin in &self.plugins {
-      let res = plugin
-        .render_manifest(PluginContext::new(), args.clone())
-        .await?;
-      tracing::trace!(
-        "For Chunk({:?}), Plugin({}) generate files {:?}",
-        args.chunk().id,
-        plugin.name(),
-        res
-          .iter()
-          .map(|manifest| manifest.filename())
-          .collect::<Vec<_>>()
-      );
+    let result = (self
+      .plugins
+      .iter()
+      .map(|plugin| async {
+        let res = plugin
+          .render_manifest(PluginContext::new(), args.clone())
+          .await;
+        match res {
+          Ok(res) => {
+            tracing::trace!(
+              "For Chunk({:?}), Plugin({}) generate files {:?}",
+              args.chunk().id,
+              plugin.name(),
+              res
+                .iter()
+                .map(|manifest| manifest.filename())
+                .collect::<Vec<_>>()
+            );
+            res
+          }
+          Err(e) => {
+            tracing::error!("Failed to render manifest for plugin {}", plugin.name());
+            vec![]
+          }
+        }
+      })
+      .collect::<FuturesUnordered<_>>())
+    .collect::<Vec<_>>()
+    .await;
+
+    for res in result {
       assets.extend(res);
     }
+
     Ok(assets)
   }
 

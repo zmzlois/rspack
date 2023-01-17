@@ -7,9 +7,11 @@ use rspack_core::rspack_sources::{
 use rspack_core::{runtime_globals, ChunkUkey, Compilation, RuntimeModule, SourceType};
 use rspack_error::Result;
 use rspack_plugin_devtool::wrap_eval_source_map;
+use tracing::instrument;
 
 static MODULE_RENDER_CACHE: Lazy<DashMap<BoxSource, BoxSource>> = Lazy::new(DashMap::default);
 
+#[instrument(skip_all)]
 pub fn render_chunk_modules(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
@@ -110,6 +112,7 @@ if (module.hot) {
   Ok(sources.boxed())
 }
 
+#[instrument(skip_all)]
 pub fn render_module(source: BoxSource, strict: bool, module_id: &str) -> BoxSource {
   let mut sources = ConcatSource::new([
     RawSource::from("\""),
