@@ -35,6 +35,7 @@ pub struct Builtins {
   pub side_effects: bool,
   pub react: ReactOptions,
   pub decorator: Option<DecoratorOptions>,
+  pub provide: HashMap<String, String>,
   pub no_emit_assets: bool,
 }
 

@@ -1,9 +1,10 @@
-use rspack_core::ModuleDependency;
+use std::collections::HashMap;
+use std::str::Split;
+
+use rspack_core::{CompilerOptions, ModuleDependency};
 use swc_core::common::pass::AstNodePath;
 use swc_core::common::{Mark, SyntaxContext};
-use swc_core::ecma::ast::{
-  CallExpr, Callee, ExportSpecifier, Expr, ExprOrSpread, Lit, MemberProp, MetaPropKind, ModuleDecl,
-};
+use swc_core::ecma::ast::*;
 use swc_core::ecma::visit::{AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath};
 
 use crate::dependency::{
@@ -182,6 +183,18 @@ impl DependencyScanner {
     }
     Ok(())
   }
+
+  fn analyze_provide<'a>(compiler_options: &'a CompilerOptions) -> HashMap<Vec<&'a str>, &String> {
+    compiler_options
+      .builtins
+      .provide
+      .iter()
+      .map(|(k, v)| {
+        let parts = k.split(".");
+        (parts.collect(), v)
+      })
+      .collect()
+  }
 }
 
 impl VisitAstPath for DependencyScanner {
@@ -206,10 +219,17 @@ impl VisitAstPath for DependencyScanner {
     self.add_require(node, &*ast_path);
     node.visit_children_with_path(self, ast_path);
   }
+  fn visit_expr<'ast: 'r, 'r>(
+    &mut self,
+    node: &'ast Expr,
+    ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+  ) {
+  }
 }
 
 impl DependencyScanner {
-  pub fn new(unresolved_mark: Mark) -> Self {
+  pub fn new(unresolved_mark: Mark, compiler_options: &CompilerOptions) -> Self {
+    let a = Self::analyze_provide(compiler_options);
     Self {
       unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
       dependencies: Default::default(),

@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use napi_derive::napi;
 use rspack_core::{Builtins, CompilerOptionsBuilder, Define, Mode, Plugin};
@@ -41,6 +41,7 @@ pub struct RawBuiltins {
   pub browserslist: Option<Vec<String>>,
   #[napi(ts_type = "Record<string, string>")]
   pub define: Option<Define>,
+  pub provide: Option<HashMap<String, String>>,
   pub tree_shaking: Option<bool>,
   pub side_effects: Option<bool>,
   pub progress: Option<RawProgressPluginConfig>,
@@ -104,6 +105,7 @@ pub(super) fn normalize_builtin(
         enable: matches!(options.mode, Some(Mode::Production)),
         passes: 1,
       }),
+    provide: builtins.provide.unwrap_or_default(),
     polyfill: builtins.polyfill.unwrap_or(true),
     define: builtins.define.unwrap_or_default(),
     tree_shaking: builtins.tree_shaking.unwrap_or_default(),
