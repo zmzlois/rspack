@@ -101,6 +101,8 @@ pub enum ModuleType {
 }
 
 impl ModuleType {
+  // pub fn is_js_related(&self) -> bool {}
+
   pub fn is_css_like(&self) -> bool {
     matches!(self, Self::Css | Self::CssModule)
   }

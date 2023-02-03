@@ -4,7 +4,7 @@ use rayon::prelude::*;
 use rspack_core::rspack_sources::{
   BoxSource, CachedSource, ConcatSource, MapOptions, RawSource, SourceExt,
 };
-use rspack_core::{runtime_globals, ChunkUkey, Compilation, RuntimeModule, SourceType};
+use rspack_core::{runtime_globals, ChunkUkey, Compilation, ModuleType, RuntimeModule, SourceType};
 use rspack_error::Result;
 use rspack_plugin_devtool::wrap_eval_source_map;
 
@@ -29,7 +29,13 @@ pub fn render_chunk_modules(
 
   let module_code_array = ordered_modules
     .par_iter()
-    .filter(|mgm| mgm.used)
+    .filter(|mgm| {
+      // dbg!(&mgm.module_type);
+      // if mgm.module_type == ModuleType::Css {
+      //   return false;
+      // }
+      mgm.used
+    })
     .map(|mgm| {
       let code_gen_result = compilation
         .code_generation_results

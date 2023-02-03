@@ -1,5 +1,4 @@
-import * as style from './a.module.css';
-console.log('style:',style);
+import  './a.css';
 import { myanswer, aaa } from './app'
 myanswer()
 
