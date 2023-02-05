@@ -26,6 +26,50 @@ pub struct ModuleGraphConnection {
 
   /// The unique id of this connection
   pub id: usize,
+
+  pub connection_state: ConnectionState,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum ConnectionState {
+  True,
+  False,
+  Transitive,
+  Circular,
+}
+
+impl ConnectionState {
+  /// Returns `true` if the connection state is [`True`].
+  ///
+  /// [`True`]: ConnectionState::True
+  #[must_use]
+  pub fn is_true(&self) -> bool {
+    matches!(self, Self::True)
+  }
+
+  /// Returns `true` if the connection state is [`False`].
+  ///
+  /// [`False`]: ConnectionState::False
+  #[must_use]
+  pub fn is_false(&self) -> bool {
+    matches!(self, Self::False)
+  }
+
+  /// Returns `true` if the connection state is [`Transitive`].
+  ///
+  /// [`Transitive`]: ConnectionState::Transitive
+  #[must_use]
+  pub fn is_transitive(&self) -> bool {
+    matches!(self, Self::Transitive)
+  }
+
+  /// Returns `true` if the connection state is [`Circular`].
+  ///
+  /// [`Circular`]: ConnectionState::Circular
+  #[must_use]
+  pub fn is_circular(&self) -> bool {
+    matches!(self, Self::Circular)
+  }
 }
 
 impl Hash for ModuleGraphConnection {
