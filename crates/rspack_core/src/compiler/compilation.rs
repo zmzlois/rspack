@@ -18,7 +18,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use indexmap::IndexSet;
 use petgraph::{algo, prelude::GraphMap, Directed};
 use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
-use rspack_database::Database;
+use rspack_database::{Database, Ukey};
 use rspack_error::{
   errors_to_diagnostics, internal_error, Diagnostic, Error, InternalError,
   IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray,
@@ -93,6 +93,7 @@ pub struct Compilation {
   pub bailout_module_identifiers: IdentifierMap<BailoutFlog>,
   #[cfg(debug_assertions)]
   pub tree_shaking_result: IdentifierMap<TreeShakingResult>,
+  pub chunk_key_to_used_modules_map: HashMap<Ukey<Chunk>, IdentifierSet>,
 
   pub code_generation_results: CodeGenerationResults,
   pub code_generated_modules: IdentifierSet,
@@ -161,6 +162,7 @@ impl Compilation {
       context_dependencies: Default::default(),
       missing_dependencies: Default::default(),
       build_dependencies: Default::default(),
+      chunk_key_to_used_modules_map: Default::default(),
     }
   }
 
@@ -1116,82 +1118,94 @@ impl Compilation {
       };
     }
 
+    let mut chunk_key_to_used_modules_map = HashMap::default();
     if side_effects_options {
       // pruning
-      let mut visited = self.entry_module_identifiers.clone();
-      let mut q = VecDeque::from_iter(visited.iter().cloned());
-      while let Some(module_identifier) = q.pop_front() {
-        let result = analyze_results.get(&module_identifier);
-        let analyze_result = match result {
-          Some(result) => result,
-          None => {
-            // These are none js like module, we need to keep it.
-            let mgm = self
-              .module_graph
-              .module_graph_module_by_identifier_mut(&module_identifier)
-              .unwrap_or_else(|| {
-                panic!("Failed to get mgm by module identifier {module_identifier}")
-              });
-            mgm.used = true;
-            continue;
-          }
-        };
-        let used = used_export_module_identifiers.contains(&analyze_result.module_identifier);
-
-        if !used
-          && !bail_out_module_identifiers.contains_key(&analyze_result.module_identifier)
-          && side_effects_free_module_ident.contains(&analyze_result.module_identifier)
-          && !self.entry_module_identifiers.contains(&module_identifier)
-        {
-          continue;
-        }
-
-        let mgm = self
-          .module_graph
-          .module_graph_module_by_identifier_mut(&module_identifier)
-          .unwrap_or_else(|| panic!("Failed to get mgm by module identifier {module_identifier}"));
-        mgm.used = true;
-        let mgm = self
-          .module_graph
-          .module_graph_module_by_identifier(&module_identifier)
-          .unwrap_or_else(|| {
-            panic!("Failed to get ModuleGraphModule by module identifier {module_identifier}")
-          });
-        for dep in mgm.dependencies.iter() {
-          let module_ident = match self.module_graph.module_identifier_by_dependency_id(dep) {
-            Some(module_identifier) => *module_identifier,
+      for ukey in self.chunk_graph.chunk_graph_chunk_by_chunk_ukey.keys() {
+        let root_modules = self
+          .chunk_graph
+          .get_chunk_root_modules(ukey, &self.module_graph);
+        dbg!(&root_modules);
+        let mut visited = IdentifierSet::from_iter(root_modules);
+        let mut used_module_identifier = IdentifierSet::default();
+        let mut q = VecDeque::from_iter(visited.iter().cloned());
+        while let Some(module_identifier) = q.pop_front() {
+          let result = analyze_results.get(&module_identifier);
+          let analyze_result = match result {
+            Some(result) => result,
             None => {
-              match self
+              // These are none js like module, we need to keep it.
+              let mgm = self
                 .module_graph
-                .module_by_identifier(&mgm.module_identifier)
-                .and_then(|module| module.as_normal_module())
-                .map(|normal_module| normal_module.ast_or_source())
-              {
-                Some(ast_or_source) => {
-                  if matches!(ast_or_source, NormalModuleAstOrSource::BuiltFailed(_)) {
-                    // We know that the build output can't run, so it is alright to generate a wrong tree-shaking result.
-                    continue;
-                  } else {
-                    panic!("Failed to resolve {dep:?}")
-                  }
-                }
-                None => {
-                  panic!("Failed to get normal module of {}", mgm.module_identifier);
-                }
-              };
+                .module_graph_module_by_identifier_mut(&module_identifier)
+                .unwrap_or_else(|| {
+                  panic!("Failed to get mgm by module identifier {module_identifier}")
+                });
+              mgm.used = true;
+              used_module_identifier.insert(module_identifier);
+              continue;
             }
           };
-          // .unwrap_or_else(|| panic!("Failed to resolve {dep:?}"))
-          // .module_identifier;
-          if !visited.contains(&module_ident) {
-            q.push_back(module_ident);
-            visited.insert(module_ident);
-          } else {
+          let used = used_export_module_identifiers.contains(&analyze_result.module_identifier);
+
+          if !used
+            && !bail_out_module_identifiers.contains_key(&analyze_result.module_identifier)
+            && side_effects_free_module_ident.contains(&analyze_result.module_identifier)
+            && !self.entry_module_identifiers.contains(&module_identifier)
+          {
             continue;
           }
+
+          let mgm = self
+            .module_graph
+            .module_graph_module_by_identifier_mut(&module_identifier)
+            .unwrap_or_else(|| {
+              panic!("Failed to get mgm by module identifier {module_identifier}")
+            });
+          mgm.used = true;
+          used_module_identifier.insert(module_identifier);
+          let mgm = self
+            .module_graph
+            .module_graph_module_by_identifier(&module_identifier)
+            .unwrap_or_else(|| {
+              panic!("Failed to get ModuleGraphModule by module identifier {module_identifier}")
+            });
+          for dep in mgm.dependencies.iter() {
+            let module_ident = match self.module_graph.module_identifier_by_dependency_id(dep) {
+              Some(module_identifier) => *module_identifier,
+              None => {
+                match self
+                  .module_graph
+                  .module_by_identifier(&mgm.module_identifier)
+                  .and_then(|module| module.as_normal_module())
+                  .map(|normal_module| normal_module.ast_or_source())
+                {
+                  Some(ast_or_source) => {
+                    if matches!(ast_or_source, NormalModuleAstOrSource::BuiltFailed(_)) {
+                      // We know that the build output can't run, so it is alright to generate a wrong tree-shaking result.
+                      continue;
+                    } else {
+                      panic!("Failed to resolve {dep:?}")
+                    }
+                  }
+                  None => {
+                    panic!("Failed to get normal module of {}", mgm.module_identifier);
+                  }
+                };
+              }
+            };
+            if !visited.contains(&module_ident) {
+              q.push_back(module_ident);
+              visited.insert(module_ident);
+            } else {
+              continue;
+            }
+          }
         }
+        chunk_key_to_used_modules_map.insert(ukey.clone(), used_module_identifier);
       }
 
+      dbg!(&chunk_key_to_used_modules_map);
       // dbg!(&used_symbol, &used_indirect_symbol);
     }
     Ok(
@@ -1200,6 +1214,7 @@ impl Compilation {
         analyze_results,
         bail_out_module_identifiers,
         used_indirect_symbol,
+        chunk_key_to_used_modules_map,
       }
       .with_diagnostic(errors_to_diagnostics(errors)),
     )
@@ -1228,6 +1243,21 @@ impl Compilation {
 
     plugin_driver.write().await.optimize_chunks(self)?;
 
+    let option = &self.options;
+    if option.builtins.tree_shaking {
+      let (analyze_result, diagnostics) = self.optimize_dependency().await?.split_into_parts();
+      self.push_batch_diagnostic(diagnostics);
+      self.used_symbol = analyze_result.used_symbol;
+      self.bailout_module_identifiers = analyze_result.bail_out_module_identifiers;
+      self.used_indirect_symbol = analyze_result.used_indirect_symbol;
+      self.chunk_key_to_used_modules_map = analyze_result.chunk_key_to_used_modules_map;
+
+      // This is only used when testing
+      #[cfg(debug_assertions)]
+      {
+        self.tree_shaking_result = analyze_result.analyze_results;
+      }
+    }
     plugin_driver.write().await.module_ids(self)?;
     plugin_driver.write().await.chunk_ids(self)?;
 

@@ -13,8 +13,8 @@ use rspack_test::read_test_config_and_normalize;
 #[tokio::main]
 async fn main() {
   let path_list = vec![
-    "benchcases/three",
-    // "examples/basic",
+    // "benchcases/three",
+    "examples/basic2",
   ];
   for p in path_list {
     println_string_with_fg_color(p, termcolorful::Color::Red);

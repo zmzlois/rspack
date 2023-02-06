@@ -14,12 +14,16 @@ pub fn render_chunk_modules(
   compilation: &Compilation,
   chunk_ukey: &ChunkUkey,
 ) -> Result<BoxSource> {
+  let builtins = &compilation.options.builtins;
+  let enable_filter_modules = builtins.tree_shaking && builtins.side_effects;
+
   let module_graph = &compilation.module_graph;
   let mut ordered_modules = compilation.chunk_graph.get_chunk_modules_by_source_type(
     chunk_ukey,
     SourceType::JavaScript,
     module_graph,
   );
+
   let chunk = compilation
     .chunk_by_ukey
     .get(chunk_ukey)
@@ -27,9 +31,14 @@ pub fn render_chunk_modules(
 
   ordered_modules.sort_by_key(|m| &m.module_identifier);
 
+  // dbg!(&compilation.chunk_key_to_used_modules_map);
+  let used_module_in_chunk = compilation
+    .chunk_key_to_used_modules_map
+    .get(chunk_ukey)
+    .unwrap();
   let module_code_array = ordered_modules
     .par_iter()
-    .filter(|mgm| mgm.used)
+    .filter(|mgm| !enable_filter_modules || used_module_in_chunk.contains(&mgm.module_identifier))
     .map(|mgm| {
       let code_gen_result = compilation
         .code_generation_results

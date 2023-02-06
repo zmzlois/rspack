@@ -1,9 +1,10 @@
 use bitflags;
+use rspack_database::Ukey;
 use rspack_symbol::{IndirectTopLevelSymbol, Symbol};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use self::visitor::TreeShakingResult;
-use crate::IdentifierMap;
+use crate::{Chunk, IdentifierMap, IdentifierSet};
 
 pub mod utils;
 pub mod visitor;
@@ -13,6 +14,7 @@ pub struct OptimizeDependencyResult {
   pub used_indirect_symbol: HashSet<IndirectTopLevelSymbol>,
   pub analyze_results: IdentifierMap<TreeShakingResult>,
   pub bail_out_module_identifiers: IdentifierMap<BailoutFlog>,
+  pub chunk_key_to_used_modules_map: HashMap<Ukey<Chunk>, IdentifierSet>,
 }
 const ANALYZE_LOGGING: bool = true;
 pub static CARED_MODULE_ID: &[&str] = &[];
