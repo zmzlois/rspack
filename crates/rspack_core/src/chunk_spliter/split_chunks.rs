@@ -102,7 +102,6 @@ impl<'me> CodeSplitter<'me> {
 
       for module_identifier in module_identifiers {
         compilation.chunk_graph.add_module(*module_identifier);
-
         input_entrypoints_and_modules
           .entry(entrypoint.ukey)
           .or_default()

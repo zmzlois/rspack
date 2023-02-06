@@ -2,6 +2,7 @@
  * @type {import('webpack').Configuration}
  */
 module.exports = {
+  mode: 'development',
   context: __dirname,
   builtins: {
     html: [{
@@ -14,6 +15,9 @@ module.exports = {
   entry: {
     main: {
       import: ["./index.js"],
+    },
+    another: {
+      import: ["./another.js"],
     }
   },
   define: {

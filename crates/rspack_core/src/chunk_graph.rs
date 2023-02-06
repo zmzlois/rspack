@@ -70,6 +70,18 @@ impl ChunkGraph {
     chunk_graph_chunk.modules.contains(module_identifier)
   }
 
+  pub(crate) fn try_get_chunk_graph_module_mut(
+    &mut self,
+    module_identifier: ModuleIdentifier,
+  ) -> Option<&mut ChunkGraphModule> {
+    self
+      .chunk_graph_module_by_module_identifier
+      .get_mut(&module_identifier)
+  }
+  ///
+  /// # Panics
+  ///
+  /// Panics if the module doesn't exist in chunk graph module
   pub(crate) fn get_chunk_graph_module_mut(
     &mut self,
     module_identifier: ModuleIdentifier,
@@ -80,6 +92,19 @@ impl ChunkGraph {
       .expect("Module should be added before")
   }
 
+  pub(crate) fn try_get_chunk_graph_module(
+    &self,
+    module_identifier: ModuleIdentifier,
+  ) -> Option<&ChunkGraphModule> {
+    self
+      .chunk_graph_module_by_module_identifier
+      .get(&module_identifier)
+  }
+
+  ///
+  /// # Panics
+  ///
+  /// Panics if the module doesn't exist in chunk graph module
   pub(crate) fn get_chunk_graph_module(
     &self,
     module_identifier: ModuleIdentifier,
@@ -243,9 +268,10 @@ impl ChunkGraph {
       })
   }
 
-  pub fn get_number_of_module_chunks(&self, module_identifier: ModuleIdentifier) -> usize {
-    let cgm = self.get_chunk_graph_module(module_identifier);
-    cgm.chunks.len()
+  pub fn get_number_of_module_chunks(&self, module_identifier: ModuleIdentifier) -> Option<usize> {
+    self
+      .try_get_chunk_graph_module(module_identifier)
+      .map(|cgm| cgm.chunks.len())
   }
 
   pub fn get_number_of_chunk_modules(&self, chunk: &ChunkUkey) -> usize {
@@ -323,14 +349,17 @@ impl ChunkGraph {
     &self,
     module_identifier: ModuleIdentifier,
     chunk_by_ukey: &ChunkByUkey,
-  ) -> RuntimeSpecSet {
-    let cgm = self.get_chunk_graph_module(module_identifier);
-    let mut runtimes = RuntimeSpecSet::default();
-    for chunk_ukey in cgm.chunks.iter() {
-      let chunk = chunk_by_ukey.get(chunk_ukey).expect("Chunk should exist");
-      runtimes.set(chunk.runtime.clone());
-    }
-    runtimes
+  ) -> Option<RuntimeSpecSet> {
+    self
+      .try_get_chunk_graph_module(module_identifier)
+      .map(|cgm| {
+        let mut runtimes = RuntimeSpecSet::default();
+        for chunk_ukey in cgm.chunks.iter() {
+          let chunk = chunk_by_ukey.get(chunk_ukey).expect("Chunk should exist");
+          runtimes.set(chunk.runtime.clone());
+        }
+        runtimes
+      })
   }
 
   pub fn get_chunk_runtime_modules_in_order(
@@ -395,9 +424,10 @@ impl ChunkGraph {
     map
   }
 
-  pub fn get_module_id(&self, module_identifier: ModuleIdentifier) -> &Option<String> {
-    let cgm = self.get_chunk_graph_module(module_identifier);
-    &cgm.id
+  pub fn get_module_id(&self, module_identifier: ModuleIdentifier) -> Option<&String> {
+    self
+      .try_get_chunk_graph_module(module_identifier)
+      .and_then(|cgm| cgm.id.as_ref())
   }
 
   pub fn set_module_id(&mut self, module_identifier: ModuleIdentifier, id: String) {

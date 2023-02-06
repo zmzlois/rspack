@@ -85,7 +85,6 @@ impl<'a> Fold for TreeShaker<'a> {
           let module_identifier = self
             .resolve_module_identifier(import.src.value.to_string())
             .unwrap_or_else(|| {
-              // FIXME: This is just a hack because of an unstable bug panic here.
               panic!(
                 "Failed to resolve dependency where `parent_module_identifier` is {:?}, `request` is {:?} and `dependency_type` is {:?}",
                 self.module_identifier,
@@ -352,6 +351,8 @@ impl<'a> Fold for TreeShaker<'a> {
           }
         }
         ModuleDecl::ExportAll(ref export_all) => {
+          dbg!(&export_all.src.value.to_string());
+          dbg!(self.module_identifier);
           let module_identifier = self
             .resolve_module_identifier(export_all.src.value.to_string())
             .expect("TODO:");

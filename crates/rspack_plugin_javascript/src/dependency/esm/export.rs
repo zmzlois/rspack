@@ -4,7 +4,9 @@ use rspack_core::{
   ModuleDependency, ModuleIdentifier,
 };
 use rspack_core::{CodeGeneratableDeclMappings, ModuleDependencyExt};
-use swc_core::ecma::ast::ModuleDecl;
+use swc_core::common::util::take::Take;
+use swc_core::common::DUMMY_SP;
+use swc_core::ecma::ast::{EmptyStmt, ModuleDecl, ModuleItem, Stmt};
 use swc_core::ecma::atoms::Atom;
 use swc_core::ecma::atoms::JsWord;
 
@@ -107,7 +109,10 @@ impl CodeGeneratable for EsmExportDependency {
       if let Some(module_id) = compilation
         .module_graph
         .module_graph_module_by_dependency_id(id)
-        .map(|m| m.id(&compilation.chunk_graph).to_string())
+        .and_then(|m| {
+          m.id_optional(&compilation.chunk_graph)
+            .map(|item| item.to_string())
+        })
       {
         {
           let (id, val) = self.decl_mapping(&compilation.module_graph, module_id.clone());
@@ -131,6 +136,14 @@ impl CodeGeneratable for EsmExportDependency {
           }
         }),
       );
+      } else {
+        // TODO: only tree-shaking is enable
+        code_gen.visitors.push(
+          create_javascript_visitor!(&self.ast_path,visit_mut_module_item(n: &mut ModuleItem) {
+            *n = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            // n.take();
+          }),
+        );
       }
     }
 

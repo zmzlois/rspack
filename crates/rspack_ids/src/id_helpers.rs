@@ -33,12 +33,28 @@ pub fn get_used_module_ids_and_modules(
   //   }
 
   compilation.module_graph.modules().for_each(|module| {
+    // if a module is unused then it will not be included in any chunk
+    match compilation
+      .module_graph
+      .module_graph_module_by_identifier(&module.identifier())
+    {
+      Some(mgm) => {
+        if !mgm.used {
+          return;
+        }
+      }
+      None => return,
+    };
     let module_id = chunk_graph.get_module_id(module.identifier());
     if let Some(module_id) = module_id {
       used_ids.insert(module_id.clone());
     } else {
       if filter.as_ref().map_or(true, |f| (f)(module))
-        && chunk_graph.get_number_of_module_chunks(module.identifier()) != 0
+        // if `get_number_of_module_chunks` return `None`, it means module does not exist in chunk_graph
+        && chunk_graph
+          .get_number_of_module_chunks(module.identifier())
+          .unwrap_or(0)
+          > 0
       {
         modules.push(module.identifier());
       }

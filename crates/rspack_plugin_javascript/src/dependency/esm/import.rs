@@ -3,7 +3,13 @@ use rspack_core::{
   CodeGeneratableResult, Dependency, DependencyCategory, DependencyId, DependencyType, ErrorSpan,
   JsAstPath, ModuleDependency, ModuleDependencyExt, ModuleIdentifier,
 };
-use swc_core::ecma::atoms::{Atom, JsWord};
+use swc_core::{
+  common::DUMMY_SP,
+  ecma::{
+    ast::{EmptyStmt, ModuleItem, Stmt},
+    atoms::{Atom, JsWord},
+  },
+};
 
 #[derive(Debug, Eq, Clone)]
 pub struct EsmImportDependency {
@@ -105,7 +111,10 @@ impl CodeGeneratable for EsmImportDependency {
       if let Some(module_id) = compilation
         .module_graph
         .module_graph_module_by_dependency_id(id)
-        .map(|m| m.id(&compilation.chunk_graph).to_string())
+        .and_then(|m| {
+          m.id_optional(&compilation.chunk_graph)
+            .map(|item| item.to_string())
+        })
       {
         {
           let (id, val) = self.decl_mapping(&compilation.module_graph, module_id.clone());
@@ -119,6 +128,13 @@ impl CodeGeneratable for EsmImportDependency {
           }
         }),
       );
+      } else {
+        code_gen.visitors.push(
+          create_javascript_visitor!(&self.ast_path,visit_mut_module_item(n: &mut ModuleItem) {
+            *n = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            // n.take();
+          }),
+        );
       }
     }
 

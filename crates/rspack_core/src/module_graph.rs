@@ -100,6 +100,7 @@ impl ModuleGraphConnection {
       dependency_id,
 
       id: NEXT_MODULE_GRAPH_CONNECTION_ID.fetch_add(1, Ordering::Relaxed),
+      connection_state: ConnectionState::True,
     }
   }
 }
@@ -278,6 +279,13 @@ impl ModuleGraph {
       .dependency_id_to_connection_id
       .get(id)
       .and_then(|id| self.connection_id_to_connection.get(id))
+  }
+
+  pub fn connection_by_dependency_mut(&mut self, id: &usize) -> Option<&mut ModuleGraphConnection> {
+    self
+      .dependency_id_to_connection_id
+      .get(id)
+      .and_then(|id| self.connection_id_to_connection.get_mut(id))
   }
 
   /// Get a list of all dependencies of a module by the module itself, if the module is not found, then None is returned

@@ -18,9 +18,26 @@ impl Plugin for NamedModuleIdsPlugin {
     // Align with https://github.com/webpack/webpack/blob/4b4ca3bb53f36a5b8fc6bc1bd976ed7af161bd80/lib/ids/NamedModuleIdsPlugin.js
     let context: &str = &compilation.options.context.to_string_lossy();
     let (mut used_ids, modules) = get_used_module_ids_and_modules(compilation, None);
+    // dbg!(&used_ids);
+    // dbg!(&modules);
     let modules = modules
       .into_iter()
-      .filter_map(|i| compilation.module_graph.module_by_identifier(&i))
+      .filter_map(|identifier| {
+        match compilation
+          .module_graph
+          .module_graph_module_by_identifier(&identifier)
+        {
+          Some(mgm) => {
+            if mgm.used {
+              Some(identifier)
+            } else {
+              None
+            }
+          }
+          None => None,
+        }
+      })
+      .map(|i| compilation.module_graph.module_by_identifier(&i).unwrap())
       .collect::<Vec<_>>();
     let chunk_graph = &mut compilation.chunk_graph;
 

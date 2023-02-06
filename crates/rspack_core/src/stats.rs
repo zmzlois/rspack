@@ -90,7 +90,7 @@ impl Stats<'_> {
       .compilation
       .module_graph
       .modules()
-      .map(|module| {
+      .filter_map(|module| {
         let identifier = module.identifier();
         let mgm = self
           .compilation
@@ -99,21 +99,28 @@ impl Stats<'_> {
           .unwrap_or_else(|| {
             panic!("Could not find ModuleGraphModule by identifier: {identifier:?}")
           });
+        if !mgm.used {
+          return None;
+        }
 
         let issuer = self.compilation.module_graph.get_issuer(module);
         let (issuer_name, issuer_id) = issuer
-          .map(|i| get_stats_module_name_and_id(i, self.compilation))
+          .and_then(|i| get_stats_module_name_and_id(i, self.compilation))
           .unzip();
         let mut issuer_path = Vec::new();
         let mut current_issuer = issuer;
         while let Some(i) = current_issuer {
-          let (name, id) = get_stats_module_name_and_id(i, self.compilation);
-          issuer_path.push(StatsModuleIssuer {
-            identifier: i.identifier().to_string(),
-            name,
-            id,
-          });
-          current_issuer = self.compilation.module_graph.get_issuer(i);
+          match get_stats_module_name_and_id(i, self.compilation) {
+            Some((name, id)) => {
+              issuer_path.push(StatsModuleIssuer {
+                identifier: i.identifier().to_string(),
+                name,
+                id,
+              });
+              current_issuer = self.compilation.module_graph.get_issuer(i);
+            }
+            None => break,
+          };
         }
         issuer_path.reverse();
 
@@ -125,7 +132,7 @@ impl Stats<'_> {
                 let (module_name, module_id) = connection
                   .original_module_identifier
                   .and_then(|i| self.compilation.module_graph.module_by_identifier(&i))
-                  .map(|m| get_stats_module_name_and_id(m, self.compilation))
+                  .and_then(|m| get_stats_module_name_and_id(m, self.compilation))
                   .unzip();
                 StatsModuleReason {
                   module_identifier: connection.original_module_identifier.map(|i| i.to_string()),
@@ -137,7 +144,8 @@ impl Stats<'_> {
             reasons.sort_by(|a, b| a.module_identifier.cmp(&b.module_identifier));
             Ok(reasons)
           })
-          .transpose()?;
+          .transpose()
+          .ok()?;
 
         let mut chunks: Vec<String> = self
           .compilation
@@ -157,14 +165,16 @@ impl Stats<'_> {
           .collect();
         chunks.sort();
 
-        Ok(StatsModule {
+        Some(Ok(StatsModule {
           r#type: "module",
           module_type: *module.module_type(),
           identifier,
           name: module
             .readable_identifier(&self.compilation.options.context)
             .into(),
-          id: mgm.id(&self.compilation.chunk_graph).to_string(),
+          id: mgm
+            .id_optional(&self.compilation.chunk_graph)
+            .map(|item| item.to_string())?,
           chunks,
           size: module.size(&SourceType::JavaScript),
           issuer: issuer.map(|i| i.identifier().to_string()),
@@ -172,7 +182,7 @@ impl Stats<'_> {
           issuer_id,
           issuer_path,
           reasons,
-        })
+        }))
       })
       .collect::<Result<_>>()?;
     modules.sort_by(|a, b| {
@@ -298,7 +308,10 @@ impl Stats<'_> {
   }
 }
 
-fn get_stats_module_name_and_id(module: &BoxModule, compilation: &Compilation) -> (String, String) {
+fn get_stats_module_name_and_id(
+  module: &BoxModule,
+  compilation: &Compilation,
+) -> Option<(String, String)> {
   let identifier = module.identifier();
   let mgm = compilation
     .module_graph
@@ -307,8 +320,9 @@ fn get_stats_module_name_and_id(module: &BoxModule, compilation: &Compilation) -
       panic!("module_graph.module_graph_module_by_identifier({identifier:?}) failed")
     });
   let name = module.readable_identifier(&compilation.options.context);
-  let id = mgm.id(&compilation.chunk_graph);
-  (name.to_string(), id.to_string())
+  mgm
+    .id_optional(&compilation.chunk_graph)
+    .map(|id| (name.to_string(), id.to_string()))
 }
 
 #[derive(Debug)]

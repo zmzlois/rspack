@@ -27,9 +27,10 @@ use serde_json::json;
 use crate::{
   contextify, identifier::Identifiable, is_async_dependency, AssetGeneratorOptions,
   AssetParserOptions, BoxModule, BuildContext, BuildResult, ChunkGraph, CodeGenerationResult,
-  Compilation, CompilerOptions, Context, Dependency, DependencyId, GenerateContext,
-  LibIdentOptions, Module, ModuleAst, ModuleDependency, ModuleGraph, ModuleGraphConnection,
-  ModuleIdentifier, ModuleType, ParseContext, ParseResult, ParserAndGenerator, Resolve, SourceType,
+  Compilation, CompilerOptions, ConnectionState, Context, Dependency, DependencyId,
+  GenerateContext, LibIdentOptions, Module, ModuleAst, ModuleDependency, ModuleGraph,
+  ModuleGraphConnection, ModuleIdentifier, ModuleType, ParseContext, ParseResult,
+  ParserAndGenerator, Resolve, SourceType,
 };
 
 bitflags! {
@@ -121,6 +122,16 @@ impl ModuleGraphModule {
       .as_str()
   }
 
+  pub fn id_optional<'chunk_graph>(
+    &self,
+    chunk_graph: &'chunk_graph ChunkGraph,
+  ) -> Option<&'chunk_graph str> {
+    chunk_graph
+      .get_module_id(self.module_identifier)
+      .as_ref()
+      .map(|r| r.as_str())
+  }
+
   pub fn add_incoming_connection(&mut self, connection_id: usize) {
     self.incoming_connections.insert(connection_id);
   }
@@ -181,12 +192,23 @@ impl ModuleGraphModule {
   // }
 
   pub fn depended_modules<'a>(&self, module_graph: &'a ModuleGraph) -> Vec<&'a ModuleIdentifier> {
-    self
+    let a: Vec<&'a ModuleIdentifier> = self
       .dependencies
       .iter()
+      .filter(|dep_id| {
+        module_graph
+          .connection_by_dependency(dep_id)
+          .unwrap()
+          .connection_state
+          == ConnectionState::True
+      })
       .filter(|id| !is_async_dependency(module_graph.dependency_by_id(id).expect("should have id")))
       .filter_map(|id| module_graph.module_identifier_by_dependency_id(id))
-      .collect()
+      .collect();
+    // for item in a.iter() {
+    //   // dbg!(&item);
+    // }
+    a
   }
 
   pub fn dynamic_depended_modules<'a>(

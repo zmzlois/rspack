@@ -67,8 +67,8 @@ impl Compiler {
               compilation
                 .chunk_graph
                 .get_module_id(item.module_identifier)
-                .clone()
-                .expect("should has module id"),
+                .expect("should has module id")
+                .clone(),
             );
           });
       }

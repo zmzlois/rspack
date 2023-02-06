@@ -43,12 +43,13 @@ use crate::{
   AddQueue, AddTask, AddTaskResult, AdditionalChunkRuntimeRequirementsArgs, BoxModuleDependency,
   BuildQueue, BuildTask, BuildTaskResult, BundleEntries, Chunk, ChunkByUkey, ChunkGraph,
   ChunkGroup, ChunkGroupUkey, ChunkKind, ChunkUkey, CleanQueue, CleanTask, CleanTaskResult,
-  CodeGenerationResult, CodeGenerationResults, CompilerOptions, ContentHashArgs, DependencyId,
-  EntryDependency, EntryItem, EntryOptions, Entrypoint, FactorizeQueue, FactorizeTask,
-  FactorizeTaskResult, Identifier, IdentifierLinkedSet, IdentifierMap, IdentifierSet,
-  LoaderRunnerRunner, Module, ModuleGraph, ModuleIdentifier, ModuleType, NormalModuleAstOrSource,
-  ProcessAssetsArgs, ProcessDependenciesQueue, ProcessDependenciesResult, ProcessDependenciesTask,
-  RenderManifestArgs, Resolve, RuntimeModule, SharedPluginDriver, Stats, TaskResult, WorkerTask,
+  CodeGenerationResult, CodeGenerationResults, CompilerOptions, ConnectionState, ContentHashArgs,
+  DependencyId, EntryDependency, EntryItem, EntryOptions, Entrypoint, FactorizeQueue,
+  FactorizeTask, FactorizeTaskResult, Identifier, IdentifierLinkedSet, IdentifierMap,
+  IdentifierSet, LoaderRunnerRunner, Module, ModuleGraph, ModuleIdentifier, ModuleType,
+  NormalModuleAstOrSource, ProcessAssetsArgs, ProcessDependenciesQueue, ProcessDependenciesResult,
+  ProcessDependenciesTask, RenderManifestArgs, Resolve, RuntimeModule, SharedPluginDriver, Stats,
+  TaskResult, WorkerTask,
 };
 
 #[derive(Debug)]
@@ -781,22 +782,23 @@ impl Compilation {
         .collect::<Result<Vec<(ModuleIdentifier, CodeGenerationResult)>>>()?;
 
       results.into_iter().for_each(|(module_identifier, result)| {
-        compilation.code_generated_modules.insert(module_identifier);
-
         let runtimes = compilation
           .chunk_graph
           .get_module_runtimes(module_identifier, &compilation.chunk_by_ukey);
+        if let Some(runtimes) = runtimes {
+          compilation.code_generated_modules.insert(module_identifier);
 
-        compilation
-          .code_generation_results
-          .module_generation_result_map
-          .insert(module_identifier, result);
-        for runtime in runtimes.values() {
-          compilation.code_generation_results.add(
-            module_identifier,
-            runtime.clone(),
-            module_identifier,
-          );
+          compilation
+            .code_generation_results
+            .module_generation_result_map
+            .insert(module_identifier, result);
+          for runtime in runtimes.values() {
+            compilation.code_generation_results.add(
+              module_identifier,
+              runtime.clone(),
+              module_identifier,
+            );
+          }
         }
       });
       Ok(())
@@ -1119,8 +1121,8 @@ impl Compilation {
     if side_effects_options {
       // pruning
       let mut visited = self.entry_module_identifiers.clone();
-      let mut q = VecDeque::from_iter(visited.iter().cloned());
-      while let Some(module_identifier) = q.pop_front() {
+      let mut q = VecDeque::from_iter(visited.iter().cloned().map(|item| (item, None)));
+      while let Some((module_identifier, dep_id)) = q.pop_front() {
         let result = analyze_results.get(&module_identifier);
         let analyze_result = match result {
           Some(result) => result,
@@ -1143,6 +1145,14 @@ impl Compilation {
           && side_effects_free_module_ident.contains(&analyze_result.module_identifier)
           && !self.entry_module_identifiers.contains(&module_identifier)
         {
+          if let Some(dep_id) = dep_id {
+            match self.module_graph.connection_by_dependency_mut(&dep_id) {
+              Some(connection) => {
+                connection.connection_state = ConnectionState::False;
+              }
+              None => {}
+            };
+          }
           continue;
         }
 
@@ -1181,10 +1191,8 @@ impl Compilation {
               };
             }
           };
-          // .unwrap_or_else(|| panic!("Failed to resolve {dep:?}"))
-          // .module_identifier;
           if !visited.contains(&module_ident) {
-            q.push_back(module_ident);
+            q.push_back((module_ident, Some(*dep)));
             visited.insert(module_ident);
           } else {
             continue;
@@ -1270,23 +1278,26 @@ impl Compilation {
         if self
           .chunk_graph
           .get_number_of_module_chunks(module.identifier())
+          .unwrap_or(0)
           > 0
         {
-          let mut module_runtime_requirements: Vec<(HashSet<String>, HashSet<&'static str>)> =
-            vec![];
-          for runtime in self
+          self
             .chunk_graph
             .get_module_runtimes(module.identifier(), &self.chunk_by_ukey)
-            .values()
-          {
-            let runtime_requirements = self
-              .code_generation_results
-              .get_runtime_requirements(&module.identifier(), Some(runtime));
-            module_runtime_requirements.push((runtime.clone(), runtime_requirements));
-          }
-          return Some((module.identifier(), module_runtime_requirements));
+            .map(|spec_set| {
+              let mut module_runtime_requirements: Vec<(HashSet<String>, HashSet<&'static str>)> =
+                vec![];
+              for runtime in spec_set.values() {
+                let runtime_requirements = self
+                  .code_generation_results
+                  .get_runtime_requirements(&module.identifier(), Some(runtime));
+                module_runtime_requirements.push((runtime.clone(), runtime_requirements));
+              }
+              (module.identifier(), module_runtime_requirements)
+            })
+        } else {
+          None
         }
-        None
       })
       .collect::<Vec<_>>();
 

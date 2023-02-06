@@ -3,9 +3,12 @@ use rspack_core::{
   Dependency, DependencyCategory, DependencyId, DependencyType, ErrorSpan, JsAstPath,
   ModuleDependency, ModuleIdentifier,
 };
-use swc_core::ecma::{
-  ast::*,
-  atoms::{Atom, JsWord},
+use swc_core::{
+  common::DUMMY_SP,
+  ecma::{
+    ast::*,
+    atoms::{Atom, JsWord},
+  },
 };
 
 #[derive(Debug, Eq, Clone)]
@@ -106,7 +109,10 @@ impl CodeGeneratable for CommonJSRequireDependency {
       if let Some(module_id) = compilation
         .module_graph
         .module_graph_module_by_dependency_id(id)
-        .map(|m| m.id(&compilation.chunk_graph).to_string())
+        .and_then(|m| {
+          m.id_optional(&compilation.chunk_graph)
+            .map(|item| item.to_string())
+        })
       {
         code_gen.visitors.push(
           create_javascript_visitor!(exact &self.ast_path, visit_mut_call_expr(n: &mut CallExpr) {
@@ -120,6 +126,12 @@ impl CodeGeneratable for CommonJSRequireDependency {
                 str.raw = Some(Atom::from(format!("\"{module_id}\"")));
               };
             }
+          }),
+        );
+      } else {
+        code_gen.visitors.push(
+          create_javascript_visitor!(&self.ast_path,visit_mut_module_item(n: &mut ModuleItem) {
+            *n = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
           }),
         );
       }
