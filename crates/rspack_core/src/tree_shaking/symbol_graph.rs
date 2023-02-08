@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap;
 use super::visitor::SymbolRef;
 use crate::contextify;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SymbolGraph {
   pub(crate) graph: StableDiGraph<SymbolRef, ()>,
   pub(crate) symbol_to_index: FxHashMap<SymbolRef, NodeIndex>,

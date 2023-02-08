@@ -14,7 +14,7 @@ pub struct ChunkGraph {
   pub(crate) block_to_chunk_group_ukey: IdentifierMap<ChunkGroupUkey>,
 
   chunk_graph_module_by_module_identifier: IdentifierMap<ChunkGraphModule>,
-  chunk_graph_chunk_by_chunk_ukey: HashMap<ChunkUkey, ChunkGraphChunk>,
+  pub(crate) chunk_graph_chunk_by_chunk_ukey: HashMap<ChunkUkey, ChunkGraphChunk>,
 }
 
 impl ChunkGraph {
@@ -417,6 +417,7 @@ impl ChunkGraph {
   ) -> Vec<ModuleIdentifier> {
     let cgc = self.get_chunk_graph_chunk(chunk);
 
+    // dbg!(&cgc.modules.iter().cloned().collect::<Vec<_>>());
     let mut modules = find_graph_roots(cgc.modules.iter().cloned().collect::<Vec<_>>(), |module| {
       let mut set: IdentifierSet = Default::default();
       fn add_dependencies(

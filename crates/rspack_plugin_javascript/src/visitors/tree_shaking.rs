@@ -22,6 +22,7 @@ pub fn tree_shaking_visitor<'a>(
   side_effects_free_modules: &'a IdentifierSet,
   module_item_map: &'a IdentifierMap<Vec<ModuleItem>>,
   helper_mark: Mark,
+  used_module_identifier: IdentifierSet,
 ) -> impl Fold + 'a {
   TreeShaker {
     module_graph,
@@ -35,6 +36,7 @@ pub fn tree_shaking_visitor<'a>(
     last_module_item_index: 0,
     module_item_map,
     helper_mark,
+    used_module_identifier,
   }
 }
 
@@ -62,6 +64,7 @@ struct TreeShaker<'a> {
   last_module_item_index: usize,
   module_item_map: &'a IdentifierMap<Vec<ModuleItem>>,
   helper_mark: Mark,
+  used_module_identifier: IdentifierSet,
 }
 
 impl<'a> Fold for TreeShaker<'a> {
@@ -120,7 +123,9 @@ impl<'a> Fold for TreeShaker<'a> {
             .module_graph
             .module_graph_module_by_identifier(&module_identifier)
             .expect("TODO:");
-          if !mgm.used {
+          if self.used_module_identifier.len() > 0
+            && !self.used_module_identifier.contains(&module_identifier)
+          {
             return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
           }
           // return ModuleItem::ModuleDecl(ModuleDecl::Import(import));
@@ -309,11 +314,13 @@ impl<'a> Fold for TreeShaker<'a> {
             let module_identifier = self
               .resolve_module_identifier(src.value.to_string())
               .expect("TODO:");
-            let mgm = self
-              .module_graph
-              .module_graph_module_by_identifier(&module_identifier)
-              .expect("TODO:");
-            if !mgm.used {
+            // let mgm = self
+            //   .module_graph
+            //   .module_graph_module_by_identifier(&module_identifier)
+            //   .expect("TODO:");
+            if self.used_module_identifier.len() > 0
+              && !self.used_module_identifier.contains(&module_identifier)
+            {
               return ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
             }
             let specifiers = named
@@ -476,11 +483,14 @@ impl<'a> Fold for TreeShaker<'a> {
           let module_identifier = self
             .resolve_module_identifier(export_all.src.value.to_string())
             .expect("TODO:");
-          let mgm = self
-            .module_graph
-            .module_graph_module_by_identifier(&module_identifier)
-            .expect("TODO:");
-          if !mgm.used {
+          // let mgm = self
+          //   .module_graph
+          //   .module_graph_module_by_identifier(&module_identifier)
+          //   .expect("TODO:");
+
+          if self.used_module_identifier.len() > 0
+            && !self.used_module_identifier.contains(&module_identifier)
+          {
             ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }))
           } else {
             ModuleItem::ModuleDecl(module_decl)

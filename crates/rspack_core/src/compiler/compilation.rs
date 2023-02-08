@@ -15,8 +15,10 @@ use dashmap::DashSet;
 use futures::{stream::FuturesUnordered, StreamExt};
 use indexmap::IndexSet;
 use rayon::prelude::{IntoParallelRefIterator, IntoParallelRefMutIterator, ParallelIterator};
-use rspack_database::Database;
-use rspack_error::{internal_error, Diagnostic, Result, Severity, TWithDiagnosticArray};
+use rspack_database::{Database, Ukey};
+use rspack_error::{
+  internal_error, Diagnostic, IntoTWithDiagnosticArray, Result, Severity, TWithDiagnosticArray,
+};
 use rspack_sources::{BoxSource, CachedSource, SourceExt};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHasher};
 use swc_core::ecma::ast::ModuleItem;
@@ -86,6 +88,7 @@ pub struct Compilation {
   pub bailout_module_identifiers: IdentifierMap<BailoutFlag>,
   #[cfg(debug_assertions)]
   pub tree_shaking_result: IdentifierMap<TreeShakingResult>,
+  pub chunk_key_to_used_modules_map: HashMap<Ukey<Chunk>, IdentifierSet>,
 
   pub code_generation_results: CodeGenerationResults,
   pub code_generated_modules: IdentifierSet,
@@ -155,6 +158,7 @@ impl Compilation {
       build_dependencies: Default::default(),
       side_effects_free_modules: IdentifierSet::default(),
       module_item_map: IdentifierMap::default(),
+      chunk_key_to_used_modules_map: HashMap::default(),
     }
   }
 
@@ -866,9 +870,48 @@ impl Compilation {
   }
 
   pub async fn optimize_dependency(
-    &mut self,
+    &self,
   ) -> Result<TWithDiagnosticArray<OptimizeDependencyResult>> {
-    optimizer::CodeSizeOptimizer::new(self).run().await
+    let mut result = OptimizeDependencyResult::default();
+
+    let mut diagnostics = vec![];
+    for (ukey, cgc) in self.chunk_graph.chunk_graph_chunk_by_chunk_ukey.iter() {
+      if cgc.modules.len() == 0 {
+        result
+          .chunk_key_to_used_modules_map
+          .insert(ukey.clone(), IdentifierSet::default());
+        continue;
+      }
+      dbg!(&cgc.modules.len());
+      let root_modules = if !cgc.entry_modules.is_empty() {
+        cgc.entry_modules.keys().cloned().collect::<Vec<_>>()
+      } else {
+        self
+          .chunk_graph
+          .get_chunk_root_modules(ukey, &self.module_graph)
+      };
+      let res = optimizer::CodeSizeOptimizer::new(
+        self,
+        IdentifierSet::from_iter(root_modules),
+        cgc.modules.clone(),
+      )
+      .run()
+      .await?;
+      let (res, errors) = res.split_into_parts();
+      dbg!(&res.used_module_identifier.len());
+      result.bail_out_module_identifiers = res.bailout_modules;
+      result.used_symbol_ref.extend(res.used_symbol_ref);
+      result
+        .chunk_key_to_used_modules_map
+        .insert(ukey.clone(), res.used_module_identifier);
+      result.side_effects_free_modules = res.side_effects_free_modules;
+      diagnostics.extend(errors);
+    }
+    // dbg!(&result.used_symbol_ref);
+    // dbg!(&result.bail_out_module_identifiers);
+    // dbg!(&result.side_effects_free_modules);
+    // dbg!(&result.chunk_key_to_used_modules_map);
+    Ok(result.with_diagnostic(diagnostics))
   }
 
   pub async fn done(&mut self, plugin_driver: SharedPluginDriver) -> Result<()> {
@@ -893,6 +936,23 @@ impl Compilation {
     build_chunk_graph(self)?;
 
     plugin_driver.write().await.optimize_chunks(self)?;
+    if self.options.builtins.tree_shaking {
+      let (analyze_result, diagnostics) = self.optimize_dependency().await?.split_into_parts();
+      if !diagnostics.is_empty() {
+        self.push_batch_diagnostic(diagnostics);
+      }
+      self.used_symbol_ref = analyze_result.used_symbol_ref;
+      self.bailout_module_identifiers = analyze_result.bail_out_module_identifiers;
+      self.side_effects_free_modules = analyze_result.side_effects_free_modules;
+      self.module_item_map = analyze_result.module_item_map;
+      self.chunk_key_to_used_modules_map = analyze_result.chunk_key_to_used_modules_map;
+
+      // This is only used when testing
+      #[cfg(debug_assertions)]
+      {
+        self.tree_shaking_result = analyze_result.analyze_results;
+      }
+    }
 
     plugin_driver.write().await.module_ids(self)?;
     plugin_driver.write().await.chunk_ids(self)?;

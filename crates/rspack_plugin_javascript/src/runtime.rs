@@ -4,7 +4,9 @@ use rayon::prelude::*;
 use rspack_core::rspack_sources::{
   BoxSource, CachedSource, ConcatSource, MapOptions, RawSource, SourceExt,
 };
-use rspack_core::{runtime_globals, ChunkUkey, Compilation, RuntimeModule, SourceType};
+use rspack_core::{
+  runtime_globals, ChunkUkey, Compilation, ModuleGraphModule, RuntimeModule, SourceType,
+};
 use rspack_error::Result;
 use rspack_plugin_devtool::wrap_eval_source_map;
 
@@ -27,9 +29,22 @@ pub fn render_chunk_modules(
 
   ordered_modules.sort_by_key(|m| &m.module_identifier);
 
+  let need_filter =
+    compilation.options.builtins.tree_shaking && compilation.options.builtins.side_effects;
+  let filter_fn: Box<dyn Fn(&&&ModuleGraphModule) -> bool + Send + Sync> = if need_filter {
+    let used_module_map = compilation
+      .chunk_key_to_used_modules_map
+      .get(chunk_ukey)
+      .expect(&format!("{:?}", chunk_ukey));
+    dbg!(&used_module_map.len());
+    Box::new(|m: &&&ModuleGraphModule| -> bool { used_module_map.contains(&m.module_identifier) })
+  } else {
+    Box::new(|m: &&&ModuleGraphModule| -> bool { true })
+  };
+
   let module_code_array = ordered_modules
     .par_iter()
-    .filter(|mgm| mgm.used)
+    .filter(filter_fn)
     .map(|mgm| {
       let code_gen_result = compilation
         .code_generation_results

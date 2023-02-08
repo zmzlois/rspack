@@ -14,7 +14,7 @@ mod format;
 use format::*;
 mod module_variables;
 use module_variables::*;
-use rspack_core::{BuildInfo, Module, ModuleType};
+use rspack_core::{BuildInfo, IdentifierSet, Module, ModuleType};
 use swc_core::common::pass::Repeat;
 use swc_core::ecma::transforms::base::Assumptions;
 use swc_core::ecma::transforms::optimization::simplify::dce::{dce, Config};
@@ -186,6 +186,14 @@ pub fn run_after_pass(
           program.visit_mut_with(&mut root_visitor.create());
         }
       }
+      let module_graph_used_ident = generate_context
+        .compilation
+        .chunk_key_to_used_modules_map
+        .values()
+        .fold(IdentifierSet::default(), |mut acc, cur| {
+          acc.extend(cur.iter().cloned());
+          acc
+        });
 
       let mut pass = chain!(
         Optional::new(
@@ -197,14 +205,15 @@ pub fn run_after_pass(
             top_level_mark,
             &generate_context.compilation.side_effects_free_modules,
             &generate_context.compilation.module_item_map,
-            context.helpers.mark()
+            context.helpers.mark(),
+            module_graph_used_ident
           ),
-          builtin_tree_shaking && need_tree_shaking
+          builtin_tree_shaking
         ),
         Optional::new(
           Repeat::new(dce(Config::default(), unresolved_mark)),
           // extra branch to avoid doing dce twice, (minify will exec dce)
-          need_tree_shaking && builtin_tree_shaking && !minify.enable,
+          builtin_tree_shaking && !minify.enable,
         ),
         swc_visitor::build_module(
           &cm,
