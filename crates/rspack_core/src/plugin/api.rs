@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use rspack_error::Result;
-use rspack_loader_runner::{Content, ResourceData};
+use rspack_loader_runner::{Content, LoaderContext, ResourceData};
 use rspack_sources::BoxSource;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -34,7 +34,7 @@ pub type PluginRenderStartupHookOutput = Result<Option<BoxSource>>;
 pub type PluginRenderHookOutput = Result<Option<BoxSource>>;
 
 #[async_trait::async_trait]
-pub trait Plugin: Debug + Send + Sync {
+pub trait Plugin<T, U>: Debug + Send + Sync {
   fn name(&self) -> &'static str {
     "unknown"
   }
@@ -66,7 +66,10 @@ pub trait Plugin: Debug + Send + Sync {
     Ok(())
   }
 
-  async fn read_resource(&self, _resource_data: &ResourceData) -> PluginReadResourceOutput {
+  async fn read_resource(
+    &self,
+    _resource_data: &LoaderContext<'_, '_, T, U>,
+  ) -> PluginReadResourceOutput {
     Ok(None)
   }
   /**
@@ -269,14 +272,14 @@ pub trait Plugin: Debug + Send + Sync {
   }
 }
 
-pub type BoxPlugin = Box<dyn Plugin>;
+pub type BoxPlugin<T, U> = Box<dyn Plugin<T, U>>;
 
-pub trait PluginExt {
-  fn boxed(self) -> BoxPlugin;
+pub trait PluginExt<T, U> {
+  fn boxed(self) -> BoxPlugin<T, U>;
 }
 
-impl<T: Plugin + 'static> PluginExt for T {
-  fn boxed(self) -> BoxPlugin {
+impl<U, V, T: Plugin<U, V> + 'static> PluginExt<T, U> for T {
+  fn boxed(self) -> BoxPlugin<T, U> {
     Box::new(self)
   }
 }

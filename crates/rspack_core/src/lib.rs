@@ -198,4 +198,4 @@ impl TryFrom<&str> for ModuleType {
 
 pub type ChunkByUkey = Database<Chunk>;
 pub type ChunkGroupByUkey = Database<ChunkGroup>;
-pub(crate) type SharedPluginDriver = Arc<RwLock<PluginDriver>>;
+pub(crate) type SharedPluginDriver<T, U> = Arc<RwLock<PluginDriver<T, U>>>;

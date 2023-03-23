@@ -25,7 +25,7 @@ pub struct ResourceData {
 
 #[derive(Debug)]
 pub struct LoaderContext<'a, 'context, T, U> {
-  pub content: Content,
+  pub content: Option<Content>,
   /// The resource part of the request, including query and fragment.
   ///
   /// E.g. /abc/resource.js?query=1#some-fragment
@@ -81,7 +81,7 @@ impl<T, U> From<LoaderContext<'_, '_, T, U>> for TWithDiagnosticArray<LoaderResu
       context_dependencies: loader_context.context_dependencies,
       missing_dependencies: loader_context.missing_dependencies,
       build_dependencies: loader_context.build_dependencies,
-      content: loader_context.content,
+      content: loader_context.content.unwrap(),
       source_map: loader_context.source_map,
       additional_data: loader_context.additional_data,
     }
@@ -103,12 +103,12 @@ pub trait Loader<T, U>: Sync + Send + Debug {
 }
 
 pub type BoxLoader<T, U> = Arc<dyn Loader<T, U>>;
-pub type BoxRunnerPlugin = Box<dyn LoaderRunnerPlugin>;
+pub type BoxRunnerPlugin<T, U> = Box<dyn LoaderRunnerPlugin<T, U>>;
 
 pub type LoaderRunnerResult = Result<TWithDiagnosticArray<LoaderResult>>;
 
-pub struct LoaderRunner {
-  plugins: Vec<BoxRunnerPlugin>,
+pub struct LoaderRunner<T, U> {
+  plugins: Vec<BoxRunnerPlugin<T, U>>,
   resource_data: ResourceData,
 }
 
@@ -118,8 +118,8 @@ pub struct LoaderRunnerAdditionalContext<'context, T, U> {
   pub compilation: &'context U,
 }
 
-impl LoaderRunner {
-  pub fn new(resource_data: ResourceData, plugins: Vec<BoxRunnerPlugin>) -> Self {
+impl<T, U> LoaderRunner<T, U> {
+  pub fn new(resource_data: ResourceData, plugins: Vec<BoxRunnerPlugin<T, U>>) -> Self {
     Self {
       plugins,
       resource_data,
@@ -130,9 +130,9 @@ impl LoaderRunner {
   ///
   /// Plugins are loaded in order, if a plugin returns `Some(Content)`, then the returning content will be used as the result.
   /// If plugins returned nothing, the runner will read via the `resource_path`.
-  async fn process_resource(&self) -> Result<Content> {
+  async fn process_resource(&self, context: &mut LoaderContext<'_, '_, T, U>) -> Result<Content> {
     for plugin in &self.plugins {
-      if let Some(processed_resource) = plugin.process_resource(&self.resource_data).await? {
+      if let Some(processed_resource) = plugin.process_resource(context).await? {
         return Ok(processed_resource);
       }
     }
@@ -141,12 +141,10 @@ impl LoaderRunner {
     Ok(Content::from(result))
   }
 
-  async fn get_loader_context<'context, T, U>(
+  async fn get_loader_context<'context>(
     &self,
     context: &'context LoaderRunnerAdditionalContext<'_, T, U>,
   ) -> Result<LoaderContext<'_, 'context, T, U>> {
-    let content = self.process_resource().await?;
-
     // TODO: FileUriPlugin
     let mut file_dependencies: HashSet<PathBuf> = Default::default();
     file_dependencies.insert(self.resource_data.resource_path.clone());
@@ -157,7 +155,7 @@ impl LoaderRunner {
       context_dependencies: Default::default(),
       missing_dependencies: Default::default(),
       build_dependencies: Default::default(),
-      content,
+      content: None,
       resource: &self.resource_data.resource,
       resource_path: &self.resource_data.resource_path,
       resource_query: self.resource_data.resource_query.as_deref(),
@@ -172,7 +170,7 @@ impl LoaderRunner {
     Ok(loader_context)
   }
 
-  pub async fn run<'loader, 'context: 'loader, T, U>(
+  pub async fn run<'loader, 'context: 'loader>(
     &self,
     loaders: impl AsRef<[&'loader dyn Loader<T, U>]>,
     context: &'context LoaderRunnerAdditionalContext<'_, T, U>,

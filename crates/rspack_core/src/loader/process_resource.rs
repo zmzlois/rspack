@@ -1,25 +1,28 @@
 use rspack_error::Result;
-use rspack_loader_runner::{Content, LoaderRunnerPlugin, ResourceData};
+use rspack_loader_runner::{Content, LoaderContext, LoaderRunnerPlugin, ResourceData};
 
 use crate::SharedPluginDriver;
 
-pub struct LoaderRunnerPluginProcessResource {
-  plugin_driver: SharedPluginDriver,
+pub struct LoaderRunnerPluginProcessResource<T, U> {
+  plugin_driver: SharedPluginDriver<T, U>,
 }
 
-impl LoaderRunnerPluginProcessResource {
-  pub fn new(plugin_driver: SharedPluginDriver) -> Self {
+impl<T, U> LoaderRunnerPluginProcessResource<T, U> {
+  pub fn new(plugin_driver: SharedPluginDriver<T, U>) -> Self {
     Self { plugin_driver }
   }
 }
 
 #[async_trait::async_trait]
-impl LoaderRunnerPlugin for LoaderRunnerPluginProcessResource {
+impl<T, U> LoaderRunnerPlugin<T, U> for LoaderRunnerPluginProcessResource<T, U> {
   fn name(&self) -> &'static str {
     "process-resource"
   }
 
-  async fn process_resource(&self, resource_data: &ResourceData) -> Result<Option<Content>> {
+  async fn process_resource(
+    &self,
+    context: &mut LoaderContext<'_, '_, T, U>,
+  ) -> Result<Option<Content>> {
     let result = self
       .plugin_driver
       .read()

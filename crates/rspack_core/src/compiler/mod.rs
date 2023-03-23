@@ -21,7 +21,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub struct Compiler<T>
+pub struct Compiler<T, U, V>
 where
   T: AsyncWritableFileSystem + Send + Sync,
 {
@@ -33,14 +33,14 @@ where
   pub cache: Arc<Cache>,
 }
 
-impl<T> Compiler<T>
+impl<T, U, V> Compiler<T, U, V>
 where
   T: AsyncWritableFileSystem + Send + Sync,
 {
   #[instrument(skip_all)]
   pub fn new(
     options: CompilerOptions,
-    plugins: Vec<Box<dyn Plugin>>,
+    plugins: Vec<Box<dyn Plugin<U, V>>>,
     output_filesystem: T,
   ) -> Self {
     let options = Arc::new(options);

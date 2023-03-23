@@ -5,7 +5,7 @@ use std::{
 
 use rayon::prelude::*;
 use rspack_error::{Diagnostic, Result};
-use rspack_loader_runner::ResourceData;
+use rspack_loader_runner::{LoaderContext, ResourceData};
 use tracing::instrument;
 
 use crate::{
@@ -23,9 +23,9 @@ use crate::{
   Stats, ThisCompilationArgs,
 };
 
-pub struct PluginDriver {
+pub struct PluginDriver<T, U> {
   pub(crate) options: Arc<CompilerOptions>,
-  pub plugins: Vec<Box<dyn Plugin>>,
+  pub plugins: Vec<Box<dyn Plugin<T, U>>>,
   pub resolver_factory: Arc<ResolverFactory>,
   // pub registered_parser: HashMap<ModuleType, BoxedParser>,
   pub registered_parser_and_generator_builder: HashMap<ModuleType, BoxedParserAndGeneratorBuilder>,
@@ -33,7 +33,7 @@ pub struct PluginDriver {
   pub diagnostics: Arc<Mutex<Vec<Diagnostic>>>,
 }
 
-impl std::fmt::Debug for PluginDriver {
+impl<T, U> std::fmt::Debug for PluginDriver<T, U> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("PluginDriver")
       .field("options", &self.options)
@@ -45,10 +45,10 @@ impl std::fmt::Debug for PluginDriver {
   }
 }
 
-impl PluginDriver {
+impl<T, U> PluginDriver<T, U> {
   pub fn new(
     options: Arc<CompilerOptions>,
-    mut plugins: Vec<Box<dyn Plugin>>,
+    mut plugins: Vec<Box<dyn Plugin<T, U>>>,
     resolver_factory: Arc<ResolverFactory>,
   ) -> Self {
     let registered_parser_and_generator_builder = plugins
@@ -88,7 +88,10 @@ impl PluginDriver {
   /// Warning:
   /// Webpack does not expose this as the documented API, even though you can reach this with `NormalModule.getCompilationHooks(compilation)`.
   /// For the most of time, you would not need this.
-  pub async fn read_resource(&self, resource_data: &ResourceData) -> Result<Option<Content>> {
+  pub async fn read_resource(
+    &self,
+    resource_data: &LoaderContext<'_, '_, T, U>,
+  ) -> Result<Option<Content>> {
     for plugin in &self.plugins {
       let result = plugin.read_resource(resource_data).await?;
       if result.is_some() {

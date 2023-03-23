@@ -39,7 +39,7 @@ impl HotUpdateContent {
   }
 }
 
-impl<T> Compiler<T>
+impl<T, U, V> Compiler<T, U, V>
 where
   T: AsyncWritableFileSystem + Send + Sync,
 {
