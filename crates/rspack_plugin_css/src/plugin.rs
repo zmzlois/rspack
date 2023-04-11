@@ -99,11 +99,12 @@ pub struct LocalIdentNameRenderOptions {
 }
 
 bitflags! {
-  struct LocalsConventionFlags: u8 {
-    const ASIS = 1 << 0;
-    const CAMELCASE = 1 << 1;
-    const DASHES = 1 << 2;
-  }
+    #[derive(Clone, Debug)]
+    struct LocalsConventionFlags: u8 {
+        const ASIS = 1 << 0;
+        const CAMELCASE = 1 << 1;
+        const DASHES = 1 << 2;
+    }
 }
 
 #[derive(Debug, Clone)]

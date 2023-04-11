@@ -56,13 +56,14 @@ pub fn debug_care_module_id<T: AsRef<str>>(id: T) -> bool {
 }
 
 bitflags::bitflags! {
-  pub struct BailoutFlag: u8 {
+    #[derive(Debug, Clone, Copy)]
+    pub struct BailoutFlag: u8 {
       const HELPER = 1 << 0;
       const COMMONJS_REQUIRE = 1 << 1;
       const COMMONJS_EXPORTS = 1 << 2;
       const DYNAMIC_IMPORT = 1 << 3;
       const CONTEXT_MODULE = 1 << 4;
-  }
+    }
 }
 
 bitflags::bitflags! {

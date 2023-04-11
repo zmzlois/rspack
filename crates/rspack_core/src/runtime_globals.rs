@@ -4,189 +4,190 @@ use bitflags::bitflags;
 use swc_core::ecma::atoms::JsWordStaticSet;
 
 bitflags! {
-  pub struct RuntimeGlobals: u64 {
+    #[derive(Clone,Copy, Debug, Hash, PartialEq, Eq)]
+    pub struct RuntimeGlobals: u64 {
 
-    const INTEROP_REQUIRE = 1 << 0;
+        const INTEROP_REQUIRE = 1 << 0;
 
-    const EXPORT_STAR = 1 << 1;
-    /**
-     * rspack
-     * load chunk with module, let module code generation result can be cached at hmr
-     */
-    const LOAD_CHUNK_WITH_MODULE = 1 << 2;
-    // port from webpack RuntimeGlobals
+        const EXPORT_STAR = 1 << 1;
+        /**
+         * rspack
+         * load chunk with module, let module code generation result can be cached at hmr
+         */
+        const LOAD_CHUNK_WITH_MODULE = 1 << 2;
+        // port from webpack RuntimeGlobals
 
-    /**
-     * the internal module object
-     */
-    const MODULE = 1 << 3;
+        /**
+         * the internal module object
+         */
+        const MODULE = 1 << 3;
 
-    /**
-     * the internal module object
-     */
-    const MODULE_ID = 1 << 4;
+        /**
+         * the internal module object
+         */
+        const MODULE_ID = 1 << 4;
 
-    /**
-     * the internal require function
-     */
-    const REQUIRE = 1 << 5;
+        /**
+         * the internal require function
+         */
+        const REQUIRE = 1 << 5;
 
-    /**
-     * the module cache
-     */
-    const MODULE_CACHE = 1 << 6;
+        /**
+         * the module cache
+         */
+        const MODULE_CACHE = 1 << 6;
 
-    /**
-     * the chunk ensure function
-     */
-    const ENSURE_CHUNK = 1 << 7;
+        /**
+         * the chunk ensure function
+         */
+        const ENSURE_CHUNK = 1 << 7;
 
-    /**
-     * an object with handlers to ensure a chunk
-     */
-    const ENSURE_CHUNK_HANDLERS = 1 << 8;
+        /**
+         * an object with handlers to ensure a chunk
+         */
+        const ENSURE_CHUNK_HANDLERS = 1 << 8;
 
-    /**
-     * the bundle public path
-     */
-    const PUBLIC_PATH = 1 << 9;
+        /**
+         * the bundle public path
+         */
+        const PUBLIC_PATH = 1 << 9;
 
-    /**
-     * the filename of the script part of the chunk
-     */
-    const GET_CHUNK_SCRIPT_FILENAME = 1 << 10;
+        /**
+         * the filename of the script part of the chunk
+         */
+        const GET_CHUNK_SCRIPT_FILENAME = 1 << 10;
 
-    /**
-     * the filename of the css part of the chunk
-     */
-    const GET_CHUNK_CSS_FILENAME = 1 << 11;
+        /**
+         * the filename of the css part of the chunk
+         */
+        const GET_CHUNK_CSS_FILENAME = 1 << 11;
 
-    /**
-     * function to load a script tag.
-     * Arguments: (url: string, done: (event) => void), key?: string | number, chunkId?: string | number) => void
-     * done function is called when loading has finished or timeout occurred.
-     * It will attach to existing script tags with data-webpack == uniqueName + ":" + key or src == url.
-     */
-    const LOAD_SCRIPT = 1 << 12;
+        /**
+         * function to load a script tag.
+         * Arguments: (url: string, done: (event) => void), key?: string | number, chunkId?: string | number) => void
+         * done function is called when loading has finished or timeout occurred.
+         * It will attach to existing script tags with data-webpack == uniqueName + ":" + key or src == url.
+         */
+        const LOAD_SCRIPT = 1 << 12;
 
-    /**
-     * the shorthand for Object.prototype.hasOwnProperty
-     * using of it decreases the compiled bundle size
-     */
-    const HAS_OWN_PROPERTY = 1 << 13;
+        /**
+         * the shorthand for Object.prototype.hasOwnProperty
+         * using of it decreases the compiled bundle size
+         */
+        const HAS_OWN_PROPERTY = 1 << 13;
 
-    /**
-     * the module functions, with only write access
-     */
-    const MODULE_FACTORIES_ADD_ONLY = 1 << 14;
+        /**
+         * the module functions, with only write access
+         */
+        const MODULE_FACTORIES_ADD_ONLY = 1 << 14;
 
-    /**
-     * register deferred code, which will run when certain
-     * chunks are loaded.
-     * Signature: (chunkIds: Id[], fn: () => any, priority: int >= 0 = 0) => any
-     * Returned value will be returned directly when all chunks are already loaded
-     * When (priority & 1) it will wait for all other handlers with lower priority to
-     * be executed before itself is executed
-     */
-    const ON_CHUNKS_LOADED = 1 << 15;
+        /**
+         * register deferred code, which will run when certain
+         * chunks are loaded.
+         * Signature: (chunkIds: Id[], fn: () => any, priority: int >= 0 = 0) => any
+         * Returned value will be returned directly when all chunks are already loaded
+         * When (priority & 1) it will wait for all other handlers with lower priority to
+         * be executed before itself is executed
+         */
+        const ON_CHUNKS_LOADED = 1 << 15;
 
-    /**
-     * global callback functions for installing chunks
-     */
-    const CHUNK_CALLBACK = 1 << 16;
+        /**
+         * global callback functions for installing chunks
+         */
+        const CHUNK_CALLBACK = 1 << 16;
 
-    /**
-     * the module functions
-     */
-    const MODULE_FACTORIES = 1 << 17;
+        /**
+         * the module functions
+         */
+        const MODULE_FACTORIES = 1 << 17;
 
-    /**
-     * interceptor for module executions
-     */
-    const INTERCEPT_MODULE_EXECUTION = 1 << 18;
+        /**
+         * interceptor for module executions
+         */
+        const INTERCEPT_MODULE_EXECUTION = 1 << 18;
 
-    /**
-     * function downloading the update manifest
-     */
-    const HMR_DOWNLOAD_MANIFEST = 1 << 19;
+        /**
+         * function downloading the update manifest
+         */
+        const HMR_DOWNLOAD_MANIFEST = 1 << 19;
 
-    /**
-     * array with handler functions to download chunk updates
-     */
-    const HMR_DOWNLOAD_UPDATE_HANDLERS = 1 << 20;
+        /**
+         * array with handler functions to download chunk updates
+         */
+        const HMR_DOWNLOAD_UPDATE_HANDLERS = 1 << 20;
 
-    /**
-     * the filename of the HMR manifest
-     */
-    const GET_UPDATE_MANIFEST_FILENAME = 1 << 21;
+        /**
+         * the filename of the HMR manifest
+         */
+        const GET_UPDATE_MANIFEST_FILENAME = 1 << 21;
 
-    /**
-     * the filename of the script part of the hot update chunk
-     */
-    const GET_CHUNK_UPDATE_SCRIPT_FILENAME = 1 << 22;
+        /**
+         * the filename of the script part of the hot update chunk
+         */
+        const GET_CHUNK_UPDATE_SCRIPT_FILENAME = 1 << 22;
 
-    /**
-     * the filename of the css part of the hot update chunk
-     */
-    const GET_CHUNK_UPDATE_CSS_FILENAME = 1 << 23;
+        /**
+         * the filename of the css part of the hot update chunk
+         */
+        const GET_CHUNK_UPDATE_CSS_FILENAME = 1 << 23;
 
-    /**
-     * object with all hmr module data for all modules
-     */
-    const HMR_MODULE_DATA = 1 << 24;
+        /**
+         * object with all hmr module data for all modules
+         */
+        const HMR_MODULE_DATA = 1 << 24;
 
-    /**
-     * the prefix for storing state of runtime modules when hmr is enabled
-     */
-    const HMR_RUNTIME_STATE_PREFIX = 1 << 25;
+        /**
+         * the prefix for storing state of runtime modules when hmr is enabled
+         */
+        const HMR_RUNTIME_STATE_PREFIX = 1 << 25;
 
-    /**
-     * method to install a chunk that was loaded somehow
-     * Signature: ({ id, ids, modules, runtime }) => void
-     */
-    const EXTERNAL_INSTALL_CHUNK = 1 << 26;
+        /**
+         * method to install a chunk that was loaded somehow
+         * Signature: ({ id, ids, modules, runtime }) => void
+         */
+        const EXTERNAL_INSTALL_CHUNK = 1 << 26;
 
-    /**
-     * the webpack hash
-     */
-    const GET_FULL_HASH = 1 << 27;
+        /**
+         * the webpack hash
+         */
+        const GET_FULL_HASH = 1 << 27;
 
-    /**
-     * the global object
-     */
-    const GLOBAL = 1 << 28;
+        /**
+         * the global object
+         */
+        const GLOBAL = 1 << 28;
 
-    /**
-     * runtime need to return the exports of the last entry module
-     */
-    const RETURN_EXPORTS_FROM_RUNTIME = 1 << 29;
+        /**
+         * runtime need to return the exports of the last entry module
+         */
+        const RETURN_EXPORTS_FROM_RUNTIME = 1 << 29;
 
-    /**
-     * instantiate a wasm instance from module exports object, id, hash and importsObject
-     */
-    const INSTANTIATE_WASM = 1 << 30;
+        /**
+         * instantiate a wasm instance from module exports object, id, hash and importsObject
+         */
+        const INSTANTIATE_WASM = 1 << 30;
 
-    /**
-     * Creates an async module. The body function must be a async function.
-     * "module.exports" will be decorated with an AsyncModulePromise.
-     * The body function will be called.
-     * To handle async dependencies correctly do this: "([a, b, c] = await handleDependencies([a, b, c]));".
-     * If "hasAwaitAfterDependencies" is truthy, "handleDependencies()" must be called at the end of the body function.
-     * Signature: function(
-     * module: Module,
-     * body: (handleDependencies: (deps: AsyncModulePromise[]) => Promise<any[]> & () => void,
-     * hasAwaitAfterDependencies?: boolean
-     * ) => void
-     */
-    const ASYNC_MODULE = 1 << 31;
+        /**
+         * Creates an async module. The body function must be a async function.
+         * "module.exports" will be decorated with an AsyncModulePromise.
+         * The body function will be called.
+         * To handle async dependencies correctly do this: "([a, b, c] = await handleDependencies([a, b, c]));".
+         * If "hasAwaitAfterDependencies" is truthy, "handleDependencies()" must be called at the end of the body function.
+         * Signature: function(
+         * module: Module,
+         * body: (handleDependencies: (deps: AsyncModulePromise[]) => Promise<any[]> & () => void,
+         * hasAwaitAfterDependencies?: boolean
+         * ) => void
+         */
+        const ASYNC_MODULE = 1 << 31;
 
-    /**
-     * the baseURI of current document
-     */
-    const BASE_URI = 1 << 32;
+        /**
+         * the baseURI of current document
+         */
+        const BASE_URI = 1 << 32;
 
-    const MODULE_LOADED = 1 << 33;
-  }
+        const MODULE_LOADED = 1 << 33;
+    }
 }
 
 impl fmt::Display for RuntimeGlobals {
@@ -250,22 +251,6 @@ impl RuntimeGlobals {
         "Unexpected flag `{r:?}`. RuntimeGlobals should only be printed for one single flag."
       ),
     }
-  }
-
-  /// A stub function for bitflags `iter` in 2.0.0, we are stuck to 1.3.0 now
-  pub fn iter(&self) -> impl Iterator<Item = Self> {
-    let mut bit = 0;
-    let bits = self.bits();
-    std::iter::from_fn(move || {
-      while bit < 64 {
-        let flag = 1 << bit;
-        bit += 1;
-        if bits & flag != 0 {
-          return Self::from_bits(flag);
-        }
-      }
-      None
-    })
   }
 }
 

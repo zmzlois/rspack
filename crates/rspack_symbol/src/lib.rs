@@ -6,6 +6,7 @@ use swc_core::ecma::atoms::JsWord;
 use swc_core::{common::SyntaxContext, ecma::atoms::js_word};
 
 bitflags! {
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
     pub struct SymbolFlag: u8 {
         const DEFAULT =  1 << 0;
         const EXPORT =  1 << 1;
@@ -14,7 +15,7 @@ bitflags! {
         const FUNCTION_EXPR = 1 << 4;
         const CLASS_EXPR = 1 << 5;
         const ALIAS = 1 << 6;
-        const EXPORT_DEFAULT = Self::DEFAULT.bits | Self::EXPORT.bits;
+        const EXPORT_DEFAULT = Self::DEFAULT.bits() | Self::EXPORT.bits();
     }
 }
 #[derive(Debug, Hash, Clone, PartialEq, Eq)]
