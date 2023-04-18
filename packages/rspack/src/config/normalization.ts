@@ -51,6 +51,7 @@ export const getNormalizedRspackOptions = (
 				filename: output.filename,
 				clean: output.clean,
 				chunkFilename: output.chunkFilename,
+				chunkFormat: output.chunkFormat,
 				crossOriginLoading: output.crossOriginLoading,
 				cssFilename: output.cssFilename,
 				cssChunkFilename: output.cssChunkFilename,

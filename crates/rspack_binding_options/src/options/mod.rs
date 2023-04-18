@@ -116,15 +116,26 @@ impl RawOptionsApply for RawOptions {
       .boxed(),
     );
     plugins.push(rspack_plugin_json::JsonPlugin {}.boxed());
+    match output.chunk_format.as_str() {
+      "array-push" => {
+        plugins.push(rspack_plugin_runtime::ArrayPushCallbackChunkFormatPlugin {}.boxed());
+      }
+      "commonjs" => {
+        plugins.push(rspack_plugin_runtime::CommonJsChunkFormatPlugin {}.boxed());
+      }
+      _ => {
+        return Err(rspack_error::Error::Anyhow {
+          source: anyhow::anyhow!("unsupported chunk_format: {}", output.chunk_format),
+        });
+      }
+    }
     match &target.platform {
       TargetPlatform::Web => {
-        plugins.push(rspack_plugin_runtime::ArrayPushCallbackChunkFormatPlugin {}.boxed());
         plugins.push(rspack_plugin_runtime::RuntimePlugin {}.boxed());
         plugins.push(rspack_plugin_runtime::CssModulesPlugin {}.boxed());
         plugins.push(rspack_plugin_runtime::JsonpChunkLoadingPlugin {}.boxed());
       }
       TargetPlatform::Node(_) => {
-        plugins.push(rspack_plugin_runtime::CommonJsChunkFormatPlugin {}.boxed());
         plugins.push(rspack_plugin_runtime::RuntimePlugin {}.boxed());
         plugins.push(rspack_plugin_runtime::CommonJsChunkLoadingPlugin {}.boxed());
       }

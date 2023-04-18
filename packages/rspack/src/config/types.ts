@@ -115,6 +115,7 @@ export interface Output {
 	clean?: Clean;
 	filename?: Filename;
 	chunkFilename?: ChunkFilename;
+	chunkFormat?: ChunkFormat;
 	crossOriginLoading?: CrossOriginLoading;
 	cssFilename?: CssFilename;
 	cssChunkFilename?: CssChunkFilename;
@@ -206,6 +207,7 @@ export type WasmLoadingType =
 	| ("fetch-streaming" | "fetch" | "async-node")
 	| string;
 export type EnabledWasmLoadingTypes = WasmLoadingType[];
+export type ChunkFormat = "array-push" | "commonjs"; // TODO not supports false and module now
 export interface OutputNormalized {
 	path?: Path;
 	clean?: Clean;
@@ -228,6 +230,7 @@ export interface OutputNormalized {
 	wasmLoading?: WasmLoading;
 	enabledWasmLoadingTypes?: EnabledWasmLoadingTypes;
 	webassemblyModuleFilename?: WebassemblyModuleFilename;
+	chunkFormat?: ChunkFormat;
 }
 
 ///// Resolve /////

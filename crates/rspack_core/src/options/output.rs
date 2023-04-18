@@ -32,6 +32,7 @@ pub struct OutputOptions {
   pub import_function_name: String,
   pub iife: bool,
   pub module: bool,
+  pub chunk_format: String,
 }
 
 #[derive(Debug)]

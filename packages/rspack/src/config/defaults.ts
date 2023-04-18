@@ -78,7 +78,12 @@ export const applyRspackOptionsDefaults = (
 
 	applyOutputDefaults(options.output, {
 		context: options.context!,
-		targetProperties
+		targetProperties,
+		isAffectedByBrowserslist:
+			target === undefined ||
+			(typeof target === "string" && target.startsWith("browserslist")) ||
+			(Array.isArray(target) &&
+				target.some(target => target.startsWith("browserslist")))
 	});
 
 	applyExternalsPresetsDefaults(options.externalsPresets, {
@@ -282,7 +287,15 @@ const applyModuleDefaults = (
 
 const applyOutputDefaults = (
 	output: OutputNormalized,
-	{ context, targetProperties: tp }: { context: Context; targetProperties: any }
+	{
+		context,
+		targetProperties: tp,
+		isAffectedByBrowserslist
+	}: {
+		context: Context;
+		targetProperties: any;
+		isAffectedByBrowserslist: boolean;
+	}
 ) => {
 	F(output, "uniqueName", () => {
 		const pkgPath = path.resolve(context, "package.json");
@@ -366,6 +379,37 @@ const applyOutputDefaults = (
 			if (tp.globalThis) return "globalThis";
 		}
 		return "self";
+	});
+	F(output, "chunkFormat", () => {
+		if (tp) {
+			const helpMessage = isAffectedByBrowserslist
+				? "Make sure that your 'browserslist' includes only platforms that support these features or select an appropriate 'target' to allow selecting a chunk format by default. Alternatively specify the 'output.chunkFormat' directly."
+				: "Select an appropriate 'target' to allow selecting one by default, or specify the 'output.chunkFormat' directly.";
+			if (output.module) {
+				// if (tp.dynamicImport) return "module";
+				if (tp.document) return "array-push";
+				throw new Error(
+					"For the selected environment is no default ESM chunk format available:\n" +
+						"ESM exports can be chosen when 'import()' is available.\n" +
+						"JSONP Array push can be chosen when 'document' is available.\n" +
+						helpMessage
+				);
+			} else {
+				if (tp.document) return "array-push";
+				if (tp.require) return "commonjs";
+				if (tp.nodeBuiltins) return "commonjs";
+				if (tp.importScripts) return "array-push";
+				throw new Error(
+					"For the selected environment is no default script chunk format available:\n" +
+						"JSONP Array push can be chosen when 'document' or 'importScripts' is available.\n" +
+						"CommonJs exports can be chosen when 'require' or node builtins are available.\n" +
+						helpMessage
+				);
+			}
+		}
+		throw new Error(
+			"Chunk format can't be selected by default when no target is specified"
+		);
 	});
 	D(output, "importFunctionName", "import");
 	F(output, "iife", () => !output.module);

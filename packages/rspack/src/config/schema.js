@@ -62,6 +62,18 @@ module.exports = {
 				}
 			]
 		},
+		ChunkFormat: {
+			description:
+				"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).",
+			anyOf: [
+				{
+					enum: ["array-push", "commonjs"]
+				},
+				{
+					type: "string"
+				}
+			]
+		},
 		CrossOriginLoading: {
 			description: "This option enables cross-origin loading of chunks.",
 			enum: [false, "anonymous", "use-credentials"]
@@ -997,6 +1009,9 @@ module.exports = {
 				},
 				chunkFilename: {
 					$ref: "#/definitions/ChunkFilename"
+				},
+				chunkFormat: {
+					$ref: "#/definitions/ChunkFormat"
 				},
 				crossOriginLoading: {
 					$ref: "#/definitions/CrossOriginLoading"

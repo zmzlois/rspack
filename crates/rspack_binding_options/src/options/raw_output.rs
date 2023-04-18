@@ -120,6 +120,7 @@ pub struct RawOutputOptions {
   pub import_function_name: String,
   pub iife: bool,
   pub module: bool,
+  pub chunk_format: String,
 }
 
 impl RawOptionsApply for RawOutputOptions {
@@ -156,6 +157,7 @@ impl RawOptionsApply for RawOutputOptions {
       import_function_name: self.import_function_name,
       iife: self.iife,
       module: self.module,
+      chunk_format: self.chunk_format,
     })
   }
 }

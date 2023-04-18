@@ -177,6 +177,7 @@ function getRawOutput(output: OutputNormalized): RawOptions["output"] {
 		importFunctionName: output.importFunctionName!,
 		iife: output.iife!,
 		module: output.module!,
+		chunkFormat: output.chunkFormat!,
 		wasmLoading: wasmLoading === false ? "false" : wasmLoading,
 		enabledWasmLoadingTypes: output.enabledWasmLoadingTypes!,
 		webassemblyModuleFilename: output.webassemblyModuleFilename!
