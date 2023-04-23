@@ -268,6 +268,13 @@ const getRawModuleRule = (
 	rule: RuleSetRule,
 	options: ComposeJsUseOptions
 ): RawModuleRule => {
+	if (rule.loader) {
+		rule.use = [
+			{
+				loader: rule.loader
+			}
+		];
+	}
 	return {
 		test: rule.test ? getRawRuleSetCondition(rule.test) : undefined,
 		include: rule.include ? getRawRuleSetCondition(rule.include) : undefined,

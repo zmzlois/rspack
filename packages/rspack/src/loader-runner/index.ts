@@ -517,6 +517,8 @@ export async function runLoader(
 		}
 		return options;
 	};
+	// Hack for vue-loader
+	(loaderContext as any)["vue-loader"] = true;
 
 	return new Promise((resolve, reject) => {
 		if (isPitching) {

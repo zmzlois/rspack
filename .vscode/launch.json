@@ -17,7 +17,7 @@
         "--inspect",
         "bin/rspack",
         "-c",
-        "../../examples/basic/rspack.config.js"
+        "../../examples/vue/rspack.config.js"
       ],
       "cwd": "${workspaceFolder}/packages/rspack-cli"
     }

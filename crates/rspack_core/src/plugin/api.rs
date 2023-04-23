@@ -286,6 +286,10 @@ pub trait Plugin: Debug + Send + Sync {
     Ok(())
   }
 
+  // async fn optimize_loaders(&self, _loader_requests: &[String]) -> Result<Option<Vec<String>>> {
+  //   Ok(None)
+  // }
+
   /// Webpack resolves loaders in `NormalModuleFactory`,
   /// Rspack resolves it when normalizing configuration.
   /// So this hook is used to resolve inline loader (inline loader requests).

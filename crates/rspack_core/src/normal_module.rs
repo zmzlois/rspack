@@ -461,6 +461,10 @@ impl NormalModule {
   pub fn ast_or_source_mut(&mut self) -> &mut NormalModuleAstOrSource {
     &mut self.ast_or_source
   }
+
+  pub fn loaders_mut_vec(&mut self) -> &mut Vec<BoxLoader> {
+    &mut self.loaders
+  }
 }
 
 impl Identifiable for NormalModule {
@@ -535,6 +539,22 @@ impl Module for NormalModule {
 
     let original_source = self.create_source(loader_result.content, loader_result.source_map)?;
     let mut code_generation_dependencies: Vec<Box<dyn ModuleDependency>> = Vec::new();
+
+    if self.resource_data.resource.contains(".vue") {
+      let mut d = self
+        .loaders
+        .iter()
+        .map(|i| i.identifier().to_string())
+        .collect::<Vec<_>>()
+        .join("!");
+
+      d = d + "!" + &*self.resource_data.resource;
+
+      // d = d + "\n\n\n" + &*s;
+
+      dbg!(d);
+      // dbg!(&self.resource_data.resource);
+    }
 
     let (
       ParseResult {

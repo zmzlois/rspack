@@ -24,6 +24,7 @@ import ConcurrentCompilationError from "./error/ConcurrentCompilationError";
 import { getRawOptions } from "./config/adapter";
 import { createThreadsafeNodeFSFromRaw } from "./fileSystem";
 import { NormalModuleFactory } from "./normalModuleFactory";
+import { NormalModule } from "./NormalModule";
 import { runLoader } from "./loader-runner";
 
 class EntryPlugin {
@@ -91,6 +92,7 @@ class Compiler {
 		this.webpack = {
 			EntryPlugin, // modernjs/server use this to inject dev-client
 			HotModuleReplacementPlugin, // modernjs/server will auto inject this this plugin not set
+			NormalModule,
 			get sources(): typeof import("webpack-sources") {
 				return require("webpack-sources");
 			},

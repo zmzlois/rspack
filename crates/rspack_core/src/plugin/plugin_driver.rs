@@ -10,19 +10,19 @@ use rspack_loader_runner::ResourceData;
 use tracing::instrument;
 
 use crate::{
-  AdditionalChunkRuntimeRequirementsArgs, ApplyContext, BoxLoader, BoxedParserAndGeneratorBuilder,
-  Chunk, ChunkAssetArgs, ChunkHashArgs, Compilation, CompilationArgs, CompilerOptions, Content,
-  ContentHashArgs, DoneArgs, FactorizeArgs, JsChunkHashArgs, Module, ModuleArgs, ModuleType,
-  NormalModule, NormalModuleFactoryContext, NormalModuleFactoryResolveForSchemeArgs,
-  OptimizeChunksArgs, Plugin, PluginAdditionalChunkRuntimeRequirementsOutput,
-  PluginBuildEndHookOutput, PluginChunkHashHookOutput, PluginCompilationHookOutput, PluginContext,
-  PluginFactorizeHookOutput, PluginJsChunkHashHookOutput, PluginMakeHookOutput,
-  PluginModuleHookOutput, PluginNormalModuleFactoryResolveForSchemeOutput,
-  PluginProcessAssetsOutput, PluginRenderChunkHookOutput, PluginRenderHookOutput,
-  PluginRenderManifestHookOutput, PluginRenderModuleContentOutput, PluginRenderStartupHookOutput,
-  PluginThisCompilationHookOutput, ProcessAssetsArgs, RenderArgs, RenderChunkArgs,
-  RenderManifestArgs, RenderModuleContentArgs, RenderStartupArgs, Resolver, ResolverFactory,
-  SourceType, Stats, ThisCompilationArgs,
+  loader, AdditionalChunkRuntimeRequirementsArgs, ApplyContext, BoxLoader,
+  BoxedParserAndGeneratorBuilder, Chunk, ChunkAssetArgs, ChunkHashArgs, Compilation,
+  CompilationArgs, CompilerOptions, Content, ContentHashArgs, DoneArgs, FactorizeArgs,
+  JsChunkHashArgs, Module, ModuleArgs, ModuleType, NormalModule, NormalModuleFactoryContext,
+  NormalModuleFactoryResolveForSchemeArgs, OptimizeChunksArgs, Plugin,
+  PluginAdditionalChunkRuntimeRequirementsOutput, PluginBuildEndHookOutput,
+  PluginChunkHashHookOutput, PluginCompilationHookOutput, PluginContext, PluginFactorizeHookOutput,
+  PluginJsChunkHashHookOutput, PluginMakeHookOutput, PluginModuleHookOutput,
+  PluginNormalModuleFactoryResolveForSchemeOutput, PluginProcessAssetsOutput,
+  PluginRenderChunkHookOutput, PluginRenderHookOutput, PluginRenderManifestHookOutput,
+  PluginRenderModuleContentOutput, PluginRenderStartupHookOutput, PluginThisCompilationHookOutput,
+  ProcessAssetsArgs, RenderArgs, RenderChunkArgs, RenderManifestArgs, RenderModuleContentArgs,
+  RenderStartupArgs, Resolver, ResolverFactory, SourceType, Stats, ThisCompilationArgs,
 };
 
 pub struct PluginDriver {
@@ -427,6 +427,15 @@ impl PluginDriver {
     }
     Ok(())
   }
+
+  // pub async fn optimize_loaders(&self, loader_requests: &[String]) -> Result<Option<Vec<String>>> {
+  //   for plugin in &self.plugins {
+  //     if let Some(loader) = plugin.optimize_loaders(loader_requests).await? {
+  //       return Ok(Some(loader));
+  //     };
+  //   }
+  //   Ok(None)
+  // }
 
   pub async fn resolve_loader(
     &self,

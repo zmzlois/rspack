@@ -278,6 +278,7 @@ export interface ModuleOptions {
 export type RuleSetRules = ("..." | RuleSetRule)[];
 export interface RuleSetRule {
 	test?: RuleSetCondition;
+	loader?: string;
 	exclude?: RuleSetCondition;
 	include?: RuleSetCondition;
 	issuer?: RuleSetCondition;

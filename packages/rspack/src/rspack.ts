@@ -85,6 +85,8 @@ function createCompiler(userOptions: RspackOptions): Compiler {
 	compiler.hooks.environment.call();
 	compiler.hooks.afterEnvironment.call();
 	new RspackOptionsApply().process(compiler.options, compiler);
+	console.log(compiler.options.module.rules);
+
 	compiler.hooks.initialize.call();
 	return compiler;
 }

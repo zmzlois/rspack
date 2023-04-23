@@ -9,10 +9,12 @@
     "build": "rspack build"
   },
   "devDependencies": {
-    "vue": "3.2.47",
     "@rspack/cli": "workspace:*",
     "@vue/compiler-sfc": "3.2.47",
-    "loader-utils": "3.2.1"
+    "loader-utils": "3.2.1",
+    "vue": "3.2.47",
+    "vue-loader": "^17.0.1",
+    "vue-template-compiler": "^2.7.14"
   },
   "keywords": [],
   "author": "",

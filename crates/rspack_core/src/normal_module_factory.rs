@@ -173,6 +173,14 @@ impl NormalModuleFactory {
         });
 
         let plugin_driver = self.plugin_driver.read().await;
+        // let raw_elements = {
+        //   let elements = raw_elements.into_iter().map(|e| e.to_string()).collect::<Vec<_>>();
+        //   if let Some(elements)= plugin_driver.optimize_loaders(elements.as_slice()).await? {
+        //     elements
+        //   } else {
+        //     elements
+        //   }
+        // };
         for element in raw_elements {
           let importer = resolve_args.importer.map(|i| i.display().to_string());
           let res = plugin_driver.resolve_loader(
@@ -196,7 +204,7 @@ impl NormalModuleFactory {
               }
             },
             &loader_resolver,
-            element
+            &element
             )
             .await?.ok_or_else(|| {
               internal_error!("Loader expected")

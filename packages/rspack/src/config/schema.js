@@ -362,7 +362,7 @@ module.exports = {
 				{
 					description:
 						"The function is called on each dependency (`function(context, request, callback(err, result))`).",
-					instanceof: "Function",
+					instanceof: "Function"
 					// tsType:
 					// 	"(((data: ExternalItemFunctionData, callback: (err?: Error, result?: ExternalItemValue) => void) => void) | ((data: ExternalItemFunctionData) => Promise<ExternalItemValue>))"
 				}
@@ -1580,6 +1580,14 @@ module.exports = {
 					oneOf: [
 						{
 							$ref: "#/definitions/RuleSetConditionOrConditions"
+						}
+					]
+				},
+				loader: {
+					description: "Shortcut for use.loader.",
+					oneOf: [
+						{
+							$ref: "#/definitions/RuleSetLoader"
 						}
 					]
 				},
