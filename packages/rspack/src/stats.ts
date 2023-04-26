@@ -132,7 +132,13 @@ export class Stats {
 			obj.filteredModules = obj.modules.length - 15;
 			obj.modules = obj.modules.slice(0, 15);
 		}
-		return obj;
+		console.log("obj:", obj);
+		const statsFactory = this.compilation.createStatsFactory(options as any);
+		const result = statsFactory.create("compilation", obj, {
+			compilation: obj
+		});
+		console.log("result:", result);
+		return result;
 	}
 
 	toString(opts?: StatsValue) {

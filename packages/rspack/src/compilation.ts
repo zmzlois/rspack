@@ -42,6 +42,7 @@ import { concatErrorMsgAndStack } from "./util";
 import { normalizeStatsPreset, Stats } from "./stats";
 import { NormalModuleFactory } from "./normalModuleFactory";
 import CacheFacade from "./lib/CacheFacade";
+import StatsFactory from "./stats/StatsFactory";
 
 const hashDigestLength = 8;
 const EMPTY_ASSET_INFO = {};
@@ -83,6 +84,7 @@ export class Compilation {
 		>;
 		finishModules: tapable.AsyncSeriesHook<[Iterable<JsModule>], undefined>;
 		chunkAsset: tapable.SyncHook<[JsChunk, string], undefined>;
+		statsFactory: tapable.SyncHook<[StatsFactory, StatsOptions]>;
 	};
 	options: RspackOptionsNormalized;
 	outputOptions: OutputNormalized;
@@ -112,7 +114,8 @@ export class Compilation {
 				"modules"
 			]),
 			finishModules: new tapable.AsyncSeriesHook(["modules"]),
-			chunkAsset: new tapable.SyncHook(["chunk", "filename"])
+			chunkAsset: new tapable.SyncHook(["chunk", "filename"]),
+			statsFactory: new tapable.SyncHook(["statsFactory", "options"])
 		};
 		this.compiler = compiler;
 		this.resolverFactory = compiler.resolverFactory;
@@ -194,6 +197,11 @@ export class Compilation {
 
 	getCache(name: string) {
 		return this.compiler.getCache(name);
+	}
+	createStatsFactory(options: StatsOptions) {
+		const statsFactory = new StatsFactory();
+		this.hooks.statsFactory.call(statsFactory, options);
+		return statsFactory;
 	}
 
 	createStatsOptions(

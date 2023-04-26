@@ -16,6 +16,7 @@
     "copy-webpack-plugin": "5.1.2",
     "generate-package-json-webpack-plugin": "^2.6.0",
     "webpack-bundle-analyzer": "4.7.0",
-    "webpack-stats-plugin": "1.1.1"
+    "webpack-stats-plugin": "1.1.1",
+    "webpack-subresource-integrity": "5.2.0-rc.1"
   }
 }

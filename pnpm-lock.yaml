@@ -343,6 +343,7 @@ importers:
       generate-package-json-webpack-plugin: ^2.6.0
       webpack-bundle-analyzer: 4.7.0
       webpack-stats-plugin: 1.1.1
+      webpack-subresource-integrity: 5.2.0-rc.1
     devDependencies:
       '@rspack/cli': link:../../packages/rspack-cli
       '@rspack/plugin-html': link:../../packages/rspack-plugin-html
@@ -350,6 +351,7 @@ importers:
       generate-package-json-webpack-plugin: 2.6.0
       webpack-bundle-analyzer: 4.7.0
       webpack-stats-plugin: 1.1.1
+      webpack-subresource-integrity: 5.2.0-rc.1
 
   examples/polyfill:
     specifiers:
@@ -18922,6 +18924,17 @@ packages:
 
   /webpack-stats-plugin/1.1.1:
     resolution: {integrity: sha512-aWwE/YuO2W7VCOyWwyDJ7BRSYRYjeXat+X31YiasMM3FS6/4X9W4Mb9Q0g+jIdVgArr1Mb08sHBJKMT5M9+gVA==}
+    dev: true
+
+  /webpack-subresource-integrity/5.2.0-rc.1:
+    resolution: {integrity: sha512-SyjlQ3VZVwpNeVPIMpYf9Qt6oTnq9G3lCcr5YNwjW9TfUoip70MlB9ZDNhJPhkHvfvajMDQwZFfDVVL1QVwnLQ==}
+    engines: {node: '>= 12'}
+    peerDependencies:
+      html-webpack-plugin: '>= 5.0.0-beta.1 < 6'
+      webpack: ^5.12.0
+    peerDependenciesMeta:
+      html-webpack-plugin:
+        optional: true
     dev: true
 
   /webpack/5.74.0:

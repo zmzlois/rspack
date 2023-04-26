@@ -3,7 +3,8 @@ const BundleAnalyzerPlugin =
 const CopyPlugin = require("copy-webpack-plugin");
 const HtmlPlugin = require("@rspack/plugin-html").default;
 const { StatsWriterPlugin } = require("webpack-stats-plugin");
-const GeneratePackageJsonPlugin = require('generate-package-json-webpack-plugin')
+const csp = require("webpack-subresource-integrity").SubresourceIntegrityPlugin;
+const GeneratePackageJsonPlugin = require("generate-package-json-webpack-plugin");
 /**
  * @type {import('@rspack/cli').Configuration}
  */
@@ -18,34 +19,23 @@ module.exports = {
 		minify: false
 	},
 	plugins: [
-		new BundleAnalyzerPlugin({
-			openAnalyzer: false,
-			analyzerMode: "json"
-		}),
-		new CopyPlugin([
-			{
-				from: "public",
-				dist: "."
+		new csp(),
+		{
+			apply(compiler) {
+				compiler.hooks.done.tap("xx", stats => {
+					const assets = stats.toJson({ all: true });
+					console.log("xxxyyy:", assets);
+				});
 			}
-		]),
-		new HtmlPlugin({
-			template: "./index.html"
-		}),
-		new StatsWriterPlugin({
-			stats: { all: true },
-			filename: "stats.json"
-		}),
-		new GeneratePackageJsonPlugin(basePackage, {})
+		}
 	]
 };
 
-
-
 var basePackage = {
-  "name": "my-nodejs-module",
-  "version": "1.0.0",
-  "main": "./bundle.js",
-  "engines": {
-    "node": ">= 14"
-  }
-}
+	name: "my-nodejs-module",
+	version: "1.0.0",
+	main: "./bundle.js",
+	engines: {
+		node: ">= 14"
+	}
+};
