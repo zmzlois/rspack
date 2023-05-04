@@ -583,6 +583,12 @@ importers:
     dependencies:
       '@rspack/cli': link:../../packages/rspack-cli
 
+  examples/web-worker:
+    specifiers:
+      '@rspack/cli': workspace:*
+    devDependencies:
+      '@rspack/cli': link:../../packages/rspack-cli
+
   npm/darwin-arm64:
     specifiers: {}
 
