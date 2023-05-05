@@ -72,14 +72,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Install Rust
-        if: ${{ needs.select.outputs.docker != 'true' }}
-        run: rustup show
-
-      - name: Setup Rust Target
-        if: ${{ needs.select.outputs.docker != 'true' }}
-        run: rustup target add ${{ inputs.target }}
-
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
@@ -89,72 +81,24 @@ jobs:
       - name: Pnpm Cache
         uses: ./.github/actions/pnpm-cache
 
-      # Linux
+      - name: Install cross
+        uses: taiki-e/install-action@cross
 
-      - name: Build x86_64-unknown-linux-gnu in Docker
-        if: ${{ inputs.target == 'x86_64-unknown-linux-gnu' }}
-        uses: ./.github/actions/docker-build
-        with:
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-          target: ${{ inputs.target }}
+      - name: Add Rust Target
+        run: rustup target add ${{ inputs.target }}
 
-      - name: Build aarch64-unknown-linux-gnu in Docker
-        if: ${{ inputs.target == 'aarch64-unknown-linux-gnu' }}
-        uses: ./.github/actions/docker-build
-        with:
-          target: ${{ inputs.target }}
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+      - name: Find and Replace on MacOS
+        if: runner.os == 'macOs'
+        run: sed -i '' "s/'cargo'/'cross'/g" ./node_modules/@napi-rs/cli/dist/api/build.js
 
-      - name: Build x86_64-unknown-linux-musl in Docker
-        if: ${{ inputs.target == 'x86_64-unknown-linux-musl' }}
-        uses: ./.github/actions/docker-build
-        with:
-          target: ${{ inputs.target }}
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+      - name: Find and Replace on non-MacOS
+        if: runner.os != 'macOs'
+        run: sed -i "s/'cargo'/'cross'/g" ./node_modules/@napi-rs/cli/dist/api/build.js
 
-      - name: Build aarch64-unknown-linux-musl in Docker
-        if: ${{ inputs.target == 'aarch64-unknown-linux-musl' }}
-        uses: ./.github/actions/docker-build
-        with:
-          target: ${{ inputs.target }}
-          image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-          pre: |
-            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
-
-      # Windows
-
-      - name: Build i686-pc-windows-msvc
-        if: ${{ inputs.target == 'i686-pc-windows-msvc' }}
-        run: RUST_TARGET=${{ inputs.target }} pnpm build:binding:release
-
-      - name: Build x86_64-pc-windows-msvc
-        if: ${{ inputs.target == 'x86_64-pc-windows-msvc' }}
-        run: RUST_TARGET=${{ inputs.target }} pnpm build:binding:release
-
-      - name: Build aarch64-pc-windows-msvc
-        if: ${{ inputs.target == 'aarch64-pc-windows-msvc' }}
-        run: RUST_TARGET=${{ inputs.target }} pnpm build:binding:release
-
-      # Mac
-      - uses: goto-bus-stop/setup-zig@v2
-        if: ${{ contains(inputs.target, 'apple') }}
-        with:
-          version: 0.10.1
-
-      - name: Build x86_64-apple-darwin
-        if: ${{ inputs.target == 'x86_64-apple-darwin' }}
+      - name: Build
         run: |
-          RUST_TARGET=${{ inputs.target }} pnpm build:binding:release
-
-      - name: Build aarch64-apple-darwin
-        if: ${{ inputs.target == 'aarch64-apple-darwin' }}
-        run: |
-          sudo rm -Rf /Library/Developer/CommandLineTools/SDKs/*;
-          export CC=$(xcrun -f clang);
-          export CXX=$(xcrun -f clang++);
-          SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-          export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-          RUST_TARGET=${{ inputs.target }} pnpm build:binding:release
+          cd crates/node_binding
+          RUST_TARGET=${{ inputs.target }} pnpm run build:release
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
