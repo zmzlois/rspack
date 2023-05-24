@@ -2,6 +2,9 @@ name: Release Nightly
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - new-nightly
   schedule:
     # 08:00 AM Beijing Time. Except Tuesday, which is for full release
     - cron: "0 0 * * 0,1,3,4,5,6"

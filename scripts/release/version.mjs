@@ -6,6 +6,7 @@ async function getCommitId() {
 	const result = await $`git rev-parse --short HEAD`;
 	return result.stdout.replace("\n", "");
 }
+
 export async function getLastVersion(root) {
 	const pkgPath = path.resolve(root, "./packages/rspack/package.json");
 	const result = await import(pkgPath, {
@@ -15,6 +16,7 @@ export async function getLastVersion(root) {
 	});
 	return result.default.version;
 }
+
 export async function getSnapshotVersion() {
 	const commitId = await getCommitId();
 	const dateTime = new Date()
@@ -23,6 +25,7 @@ export async function getSnapshotVersion() {
 		.replace(/[^\d]/g, "");
 	return `0.0.0-canary-${commitId}-${dateTime}`;
 }
+
 export async function version_handler(version) {
 	const allowedVersion = ["major", "minor", "patch", "snapshot"];
 	if (!allowedVersion.includes(version)) {
