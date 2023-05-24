@@ -3,7 +3,7 @@ members  = ["crates/*"]
 resolver = "2"          # See https://doc.rust-lang.org/cargo/reference/resolver.html#feature-resolver-version-2
 
 [workspace.dependencies]
-anyhow             = { version = "1.0.70", features = ["backtrace"] }
+anyhow             = { version = "1.0.71", features = ["backtrace"] }
 async-recursion    = { version = "1.0.4" }
 async-scoped       = { version = "0.7.1" }
 async-trait        = { version = "0.1.68" }
@@ -17,7 +17,7 @@ derive_builder     = { version = "0.11.2" }
 futures            = { version = "0.3.28" }
 futures-util       = { version = "0.3.28" }
 glob               = { version = "0.3.1" }
-hashlink           = { version = "0.8.1" }
+hashlink           = { version = "0.8.2" }
 indexmap           = { version = "1.9.3" }
 insta              = { version = "1.29.0" }
 itertools          = { version = "0.10.5" }
@@ -31,16 +31,16 @@ paste              = { version = "1.0" }
 pathdiff           = { version = "0.2.1" }
 preset_env_base    = { version = "0.4.2" }
 rayon              = { version = "1.7.0" }
-regex              = { version = "1.8.1" }
+regex              = { version = "1.8.2" }
 rspack_sources     = { version = "0.2.4" }
 rustc-hash         = { version = "1.1.0" }
 schemars           = { version = "0.8.12" }
-serde              = { version = "1.0.160" }
+serde              = { version = "1.0.163" }
 serde_json         = { version = "1.0.96" }
 similar            = { version = "2.2.1" }
 sugar_path         = { version = "0.0.12" }
 testing_macros     = { version = "0.2.9" }
-tokio              = { version = "1.28.0" }
+tokio              = { version = "1.28.1" }
 tracing            = { version = "0.1.37" }
 tracing-subscriber = { version = "0.3.17" }
 url                = { version = "2.3.1" }

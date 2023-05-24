@@ -9,7 +9,7 @@ version    = "0.1.0"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bitflags = { workspace = true }
-data-encoding = "2.3.3"
+data-encoding = "2.4.0"
 heck = "0.4.1"
 indexmap = { workspace = true }
 itertools = { workspace = true }
