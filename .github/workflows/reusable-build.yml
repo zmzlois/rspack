@@ -62,19 +62,18 @@ jobs:
         uses: mxschmitt/action-tmate@v3
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.debug_enabled }}
 
-      - name: Setup Rust Target
-        run: rustup target add ${{ inputs.target }}
-
       - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
+        uses: ./.github/actions/rust-cache
         with:
-          shared-key: build-${{ inputs.target }}
-          save-if: ${{ github.ref_name == 'main' }} # This should be safe because we have nightly building the cache every day
+          save-if: true # ${{ github.ref_name == 'main' }}
 
       - name: Pnpm Cache
         uses: ./.github/actions/pnpm-cache
         with:
           save-if: ${{ github.ref_name == 'main' }}
+
+      - name: Setup Rust Target
+        run: rustup target add ${{ inputs.target }}
 
       # Linux
 

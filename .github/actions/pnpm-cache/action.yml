@@ -44,8 +44,6 @@ runs:
       with:
         path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
         key: node-cache-${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
-        restore-keys: |
-          node-cache-${{ runner.os }}-pnpm-
 
     - name: Install dependencies
       shell: bash

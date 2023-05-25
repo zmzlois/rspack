@@ -21,8 +21,8 @@ jobs:
       - name: Pnpm Cache
         uses: ./.github/actions/pnpm-cache
 
-      - name: Install Rust
-        run: rustup show
+      - name: Rust Cache
+        uses: ./.github/actions/rust-cache
 
       - uses: goto-bus-stop/setup-zig@v2
         with:

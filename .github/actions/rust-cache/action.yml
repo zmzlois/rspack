@@ -1,0 +1,42 @@
+name: Rust cache
+
+description: Cache Rust artifacts
+
+# Note 1: Swatinem/rust-cache does not cache everything,
+# which leads to slow builds because our own crates need to be compiled.
+
+# Note 2: Configurations are from <https://doc.rust-lang.org/cargo/guide/cargo-home.html#caching-the-cargo-home-in-ci>
+
+inputs:
+  save-if:
+    default: false
+    required: false
+    type: boolean
+
+runs:
+  using: composite
+  steps:
+    - name: Install toolchain
+      shell: bash
+      run: rustup show
+
+    - name: Restore ~/.cargo
+      uses: actions/cache/restore@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: cargo-cache-${{ hashFiles('Cargo.lock') }}
+        restore-keys: |
+          cargo-cache-
+
+    - name: Save ~/.cargo
+      uses: actions/cache/save@v3
+      if: ${{ inputs.save-if == 'true' }}
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: cargo-cache-${{ hashFiles('Cargo.lock') }}
