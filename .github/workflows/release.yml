@@ -62,7 +62,9 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
-
+      - name: Release Full Test
+        run: |
+          ./x publish stable --tag ${{inputs.tag}} ${{inputs.dry_run && '--dry-run' || '--no-dry-run'}} ${{inputs.push_tags && '--push-tags' || '--no-push-tags'}}
       - name: Build node packages
         run: pnpm run build:js
 
