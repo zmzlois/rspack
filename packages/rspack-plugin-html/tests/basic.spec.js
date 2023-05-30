@@ -5,7 +5,10 @@ const fs = require("fs");
 const { rspack } = require("@rspack/core");
 const rimraf = require("rimraf");
 const _ = require("lodash");
-const { default: HtmlWebpackPlugin, defaultTemplateCompiler } = require("../");
+const {
+	HtmlRspackPlugin: HtmlWebpackPlugin,
+	defaultTemplateCompiler
+} = require("../");
 
 const OUTPUT_DIR = path.resolve(__dirname, "./dist/basic-spec");
 
