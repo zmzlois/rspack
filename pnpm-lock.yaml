@@ -757,6 +757,9 @@ importers:
   npm/linux-x64-gnu:
     specifiers: {}
 
+  npm/win32-x64-msvc:
+    specifiers: {}
+
   packages/create-rspack:
     specifiers:
       prompts: 2.4.2
