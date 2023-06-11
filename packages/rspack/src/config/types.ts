@@ -387,6 +387,7 @@ export interface ModuleOptionsNormalized {
 }
 
 export type AvailableTarget =
+	| "async-node"
 	| "node"
 	| `node${number}`
 	| `node${number}.${number}`
