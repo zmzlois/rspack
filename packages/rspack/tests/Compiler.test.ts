@@ -1002,6 +1002,7 @@ describe("Compiler", () => {
 			});
 
 			compiler.run((err, stats) => {
+				console.log("err:", err?.message);
 				expect(
 					err.message.includes("Failed to handle process assets from JS")
 				).toBeTruthy();
