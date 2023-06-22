@@ -63,7 +63,11 @@ const config = {
 			perChunkOutput: true,
 			outputFilename: `3rdpartylicenses.txt`
 		}),
-		new checkPlugin(),
+		new checkPlugin({
+			typescript: {
+				mode: "write-dts"
+			}
+		}),
 		new manifestPlugin({
 			fileName: "rspack-manifest.json",
 			generate: (seed, files, entries) => {
