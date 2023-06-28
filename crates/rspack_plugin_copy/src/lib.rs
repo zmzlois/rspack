@@ -200,13 +200,16 @@ impl CopyPlugin {
         &compilation.options.output.hash_salt,
       );
       let content_hash = content_hash.rendered(compilation.options.output.hash_digest_length);
-      let template_str = compilation.get_asset_path(
-        &Filename::from(filename.to_string_lossy().to_string()),
-        PathData::default()
-          .filename(&source_filename.to_string_lossy())
-          .content_hash(content_hash)
-          .hash_optional(compilation.get_hash()),
-      );
+      let template_str = compilation
+        .get_asset_path(
+          &Filename::from(filename.to_string_lossy().to_string()),
+          PathData::default()
+            .filename(&source_filename.to_string_lossy())
+            .content_hash(content_hash)
+            .hash_optional(compilation.get_hash()),
+        )
+        .await;
+      dbg!(&template_str);
 
       LOGGER.log(&format!(
         "interpolated template '{template_str}' for '{}'",

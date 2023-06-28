@@ -21,6 +21,7 @@ impl AmdLibraryPlugin {
   }
 }
 
+#[async_trait::async_trait]
 impl Plugin for AmdLibraryPlugin {
   fn name(&self) -> &'static str {
     "AmdLibraryPlugin"
@@ -37,7 +38,7 @@ impl Plugin for AmdLibraryPlugin {
     Ok(())
   }
 
-  fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
+  async fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
     let compilation = &args.compilation;
     let chunk = args.chunk();
     let modules = compilation
@@ -64,15 +65,17 @@ impl Plugin for AmdLibraryPlugin {
         "require({external_deps_array}, {fn_start}"
       )));
     } else if let Some(name) = name {
-      let normalize_name = compilation.get_path(
-        &Filename::from(name),
-        PathData::default().chunk(chunk).content_hash_optional(
-          chunk
-            .content_hash
-            .get(&SourceType::JavaScript)
-            .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
-        ),
-      );
+      let normalize_name = compilation
+        .get_path(
+          &Filename::from(name),
+          PathData::default().chunk(chunk).content_hash_optional(
+            chunk
+              .content_hash
+              .get(&SourceType::JavaScript)
+              .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
+          ),
+        )
+        .await;
       source.add(RawSource::from(format!(
         "define('{normalize_name}', {external_deps_array}, {fn_start}"
       )));

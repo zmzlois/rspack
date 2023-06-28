@@ -3,9 +3,10 @@ use rspack_sources::BoxSource;
 
 use crate::{ChunkUkey, Compilation, Module};
 
+#[async_trait::async_trait]
 pub trait RuntimeModule: Module {
   fn name(&self) -> Identifier;
-  fn generate(&self, compilation: &Compilation) -> BoxSource;
+  async fn generate(&self, compilation: &Compilation) -> BoxSource;
   fn attach(&mut self, _chunk: ChunkUkey) {}
   fn stage(&self) -> u8 {
     0

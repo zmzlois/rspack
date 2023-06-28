@@ -315,11 +315,14 @@ impl JsCompilation {
   }
 
   #[napi]
-  pub fn get_asset_path(&self, filename: String, data: PathData) -> String {
-    self.inner.get_asset_path(
-      &rspack_core::Filename::from(filename),
-      data.as_core_path_data(),
-    )
+  pub async fn get_asset_path(&self, filename: String, data: PathData) -> String {
+    self
+      .inner
+      .get_asset_path(
+        &rspack_core::Filename::from(filename),
+        data.as_core_path_data(),
+      )
+      .await
   }
 
   #[napi]

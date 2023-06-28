@@ -92,7 +92,7 @@ impl Plugin for CommonJsChunkFormatPlugin {
     args: &RenderChunkArgs,
   ) -> PluginRenderChunkHookOutput {
     let chunk = args.chunk();
-    let base_chunk_output_name = get_chunk_output_name(chunk, args.compilation);
+    let base_chunk_output_name = get_chunk_output_name(chunk, args.compilation).await;
     let mut sources = ConcatSource::default();
     sources.add(RawSource::from(format!(
       "exports.ids = ['{}'];\n",
@@ -116,7 +116,7 @@ impl Plugin for CommonJsChunkFormatPlugin {
     }
 
     if chunk.has_entry_module(&args.compilation.chunk_graph) {
-      let runtime_chunk_output_name = get_runtime_chunk_output_name(args)?;
+      let runtime_chunk_output_name = get_runtime_chunk_output_name(args).await?;
       sources.add(RawSource::from(format!(
         "var {} = require('{}');\n",
         RuntimeGlobals::REQUIRE,
@@ -145,7 +145,8 @@ impl Plugin for CommonJsChunkFormatPlugin {
           chunk: &chunk.ukey,
           module: *last_entry_module,
           source: start_up_source,
-        })?
+        })
+        .await?
       {
         sources.add(s);
       }

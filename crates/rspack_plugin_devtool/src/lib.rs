@@ -175,18 +175,21 @@ impl Plugin for DevtoolPlugin {
                 } else {
                   &SourceType::JavaScript
                 };
-                source_map_filename = args.compilation.get_asset_path(
-                  source_map_filename_config,
-                  PathData::default()
-                    .chunk(chunk)
-                    .filename(&filename)
-                    .content_hash_optional(
-                      chunk
-                        .content_hash
-                        .get(source_type)
-                        .map(|i| i.rendered(args.compilation.options.output.hash_digest_length)),
-                    ),
-                );
+                source_map_filename = args
+                  .compilation
+                  .get_asset_path(
+                    source_map_filename_config,
+                    PathData::default()
+                      .chunk(chunk)
+                      .filename(&filename)
+                      .content_hash_optional(
+                        chunk
+                          .content_hash
+                          .get(source_type)
+                          .map(|i| i.rendered(args.compilation.options.output.hash_digest_length)),
+                      ),
+                  )
+                  .await;
                 break;
               }
             }

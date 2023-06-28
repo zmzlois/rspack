@@ -201,7 +201,8 @@ impl Plugin for ModuleChunkFormatPlugin {
           chunk: &chunk.ukey,
           module: *last_entry_module,
           source: RawSource::from(startup_source.join("\n")).boxed(),
-        })?
+        })
+        .await?
       {
         sources.add(s);
       }

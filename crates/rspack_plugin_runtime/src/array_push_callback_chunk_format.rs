@@ -156,7 +156,8 @@ impl Plugin for ArrayPushCallbackChunkFormatPlugin {
               chunk: &chunk.ukey,
               module: *last_entry_module,
               source: start_up_source,
-            })?
+            })
+            .await?
           {
             source.add(s);
           }

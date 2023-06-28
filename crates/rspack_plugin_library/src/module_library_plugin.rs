@@ -15,12 +15,13 @@ pub struct ModuleLibraryPlugin;
 
 impl ModuleLibraryPlugin {}
 
+#[async_trait::async_trait]
 impl Plugin for ModuleLibraryPlugin {
   fn name(&self) -> &'static str {
     "ModuleLibraryPlugin"
   }
 
-  fn render_startup(
+  async fn render_startup(
     &self,
     _ctx: PluginContext,
     args: &RenderStartupArgs,

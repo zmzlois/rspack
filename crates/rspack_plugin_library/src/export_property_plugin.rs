@@ -10,12 +10,13 @@ pub struct ExportPropertyLibraryPlugin;
 
 impl ExportPropertyLibraryPlugin {}
 
+#[async_trait::async_trait]
 impl Plugin for ExportPropertyLibraryPlugin {
   fn name(&self) -> &'static str {
     "ExportPropertyLibraryPlugin"
   }
 
-  fn render_startup(
+  async fn render_startup(
     &self,
     _ctx: PluginContext,
     args: &RenderStartupArgs,

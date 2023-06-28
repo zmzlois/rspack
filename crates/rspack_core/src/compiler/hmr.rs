@@ -401,14 +401,17 @@ where
             .chunk_by_ukey
             .get(&ukey)
             .expect("should have update chunk");
-          let filename = self.compilation.get_path(
-            &self.compilation.options.output.hot_update_chunk_filename,
-            PathData::default().chunk(chunk).hash_optional(
-              old_hash
-                .as_ref()
-                .map(|hash| hash.rendered(self.compilation.options.output.hash_digest_length)),
-            ),
-          );
+          let filename = self
+            .compilation
+            .get_path(
+              &self.compilation.options.output.hot_update_chunk_filename,
+              PathData::default().chunk(chunk).hash_optional(
+                old_hash
+                  .as_ref()
+                  .map(|hash| hash.rendered(self.compilation.options.output.hash_digest_length)),
+              ),
+            )
+            .await;
           self.compilation.emit_asset(filename, asset);
         }
 
@@ -430,14 +433,17 @@ where
         .iter()
         .map(|x| x.to_owned())
         .collect();
-      let filename = self.compilation.get_path(
-        &self.compilation.options.output.hot_update_main_filename,
-        PathData::default().runtime(&content.runtime).hash_optional(
-          old_hash
-            .as_ref()
-            .map(|hash| hash.rendered(self.compilation.options.output.hash_digest_length)),
-        ),
-      );
+      let filename = self
+        .compilation
+        .get_path(
+          &self.compilation.options.output.hot_update_main_filename,
+          PathData::default().runtime(&content.runtime).hash_optional(
+            old_hash
+              .as_ref()
+              .map(|hash| hash.rendered(self.compilation.options.output.hash_digest_length)),
+          ),
+        )
+        .await;
       self.compilation.emit_asset(
         filename,
         CompilationAsset::new(

@@ -15,6 +15,7 @@ pub struct SystemLibraryPlugin;
 
 impl SystemLibraryPlugin {}
 
+#[async_trait::async_trait]
 impl Plugin for SystemLibraryPlugin {
   fn name(&self) -> &'static str {
     "SystemLibraryPlugin"
@@ -31,7 +32,7 @@ impl Plugin for SystemLibraryPlugin {
     Ok(())
   }
 
-  fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
+  async fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
     let compilation = &args.compilation;
     // system-named-assets-path is not supported
     let name = normalize_name(&compilation.options.output.library)?

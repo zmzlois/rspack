@@ -173,12 +173,12 @@ pub trait Plugin: Debug + Send + Sync {
   }
 
   // JavascriptModulesPlugin hook
-  fn render(&self, _ctx: PluginContext, _args: &RenderArgs) -> PluginRenderStartupHookOutput {
+  async fn render(&self, _ctx: PluginContext, _args: &RenderArgs) -> PluginRenderStartupHookOutput {
     Ok(None)
   }
 
   // JavascriptModulesPlugin hook
-  fn render_startup(
+  async fn render_startup(
     &self,
     _ctx: PluginContext,
     _args: &RenderStartupArgs,

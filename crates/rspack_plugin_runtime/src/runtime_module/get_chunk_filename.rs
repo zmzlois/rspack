@@ -36,6 +36,7 @@ impl GetChunkFilenameRuntimeModule {
   }
 }
 
+#[async_trait::async_trait]
 impl RuntimeModule for GetChunkFilenameRuntimeModule {
   fn name(&self) -> Identifier {
     self.id
@@ -45,7 +46,7 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
     false
   }
 
-  fn generate(&self, compilation: &Compilation) -> BoxSource {
+  async fn generate(&self, compilation: &Compilation) -> BoxSource {
     let url = match self.chunk {
       Some(chunk) => match compilation.chunk_by_ukey.get(&chunk) {
         Some(chunk) => {
@@ -89,18 +90,20 @@ impl RuntimeModule for GetChunkFilenameRuntimeModule {
                 ),
                 _ => unreachable!(),
               };
-              let filename = compilation.get_path(
-                filename_template,
-                PathData::default()
-                  .chunk(chunk)
-                  .content_hash_optional(
-                    chunk
-                      .content_hash
-                      .get(&self.source_type)
-                      .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
-                  )
-                  .hash_optional(compilation.get_hash()),
-              );
+              let filename = compilation
+                .get_path(
+                  filename_template,
+                  PathData::default()
+                    .chunk(chunk)
+                    .content_hash_optional(
+                      chunk
+                        .content_hash
+                        .get(&self.source_type)
+                        .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
+                    )
+                    .hash_optional(compilation.get_hash()),
+                )
+                .await;
               chunks_map.insert(chunk.expect_id().to_string(), format!("\"{filename}\""));
             }
           }

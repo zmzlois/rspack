@@ -23,6 +23,7 @@ impl UmdLibraryPlugin {
   }
 }
 
+#[async_trait::async_trait]
 impl Plugin for UmdLibraryPlugin {
   fn name(&self) -> &'static str {
     "UmdLibraryPlugin"
@@ -39,7 +40,7 @@ impl Plugin for UmdLibraryPlugin {
     Ok(())
   }
 
-  fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
+  async fn render(&self, _ctx: PluginContext, args: &RenderArgs) -> PluginRenderHookOutput {
     let compilation = &args.compilation;
     let chunk = args.chunk();
     let modules = compilation
@@ -94,17 +95,23 @@ impl Plugin for UmdLibraryPlugin {
     };
 
     let factory = if name.is_some() {
+      let a = if let Some(r) = commonjs
+        .clone()
+        .map(|commonjs| library_name(&[commonjs], chunk, compilation))
+        .or_else(|| {
+          root
+            .clone()
+            .map(|root| library_name(&root, chunk, compilation))
+        }) {
+        r.await
+      } else {
+        Default::default()
+      };
       let commonjs_code = format!(
         "{}
         exports[{}] = factory({});\n",
         get_auxiliary_comment("commonjs", auxiliary_comment),
-        &commonjs
-          .clone()
-          .map(|commonjs| library_name(&[commonjs], chunk, compilation))
-          .or_else(|| root
-            .clone()
-            .map(|root| library_name(&root, chunk, compilation)))
-          .unwrap_or_default(),
+        &a,
         externals_require_array("commonjs", &externals),
       );
       let root_code = format!(
@@ -121,7 +128,8 @@ impl Plugin for UmdLibraryPlugin {
           ),
           chunk,
           compilation,
-        ),
+        )
+        .await,
         external_root_array(&externals)
       );
       format!(
@@ -193,22 +201,24 @@ impl Plugin for UmdLibraryPlugin {
   }
 }
 
-fn library_name(v: &[String], chunk: &Chunk, compilation: &Compilation) -> String {
+async fn library_name(v: &[String], chunk: &Chunk, compilation: &Compilation) -> String {
   let value =
     serde_json::to_string(v.last().expect("should have last")).expect("invalid module_id");
-  replace_keys(value, chunk, compilation)
+  replace_keys(value, chunk, compilation).await
 }
 
-fn replace_keys(v: String, chunk: &Chunk, compilation: &Compilation) -> String {
-  compilation.get_path(
-    &Filename::from(v),
-    PathData::default().chunk(chunk).content_hash_optional(
-      chunk
-        .content_hash
-        .get(&SourceType::JavaScript)
-        .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
-    ),
-  )
+async fn replace_keys(v: String, chunk: &Chunk, compilation: &Compilation) -> String {
+  compilation
+    .get_path(
+      &Filename::from(v),
+      PathData::default().chunk(chunk).content_hash_optional(
+        chunk
+          .content_hash
+          .get(&SourceType::JavaScript)
+          .map(|i| i.rendered(compilation.options.output.hash_digest_length)),
+      ),
+    )
+    .await
 }
 
 fn externals_require_array(_t: &str, externals: &[&ExternalModule]) -> String {

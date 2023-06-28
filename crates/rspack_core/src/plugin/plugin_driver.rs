@@ -169,7 +169,7 @@ impl PluginDriver {
   ) -> Result<String> {
     let mut updated_name = filename;
     for plugin in &self.plugins {
-      let temp = &plugin
+      let temp = plugin
         .asset_path(&AssetPathArgs {
           filename: &updated_name,
           data,
@@ -280,25 +280,28 @@ impl PluginDriver {
     Ok(None)
   }
 
-  pub fn render(&self, args: RenderArgs) -> PluginRenderHookOutput {
+  pub async fn render(&self, args: RenderArgs<'_>) -> PluginRenderHookOutput {
     for plugin in &self.plugins {
-      if let Some(source) = plugin.render(PluginContext::new(), &args)? {
+      if let Some(source) = plugin.render(PluginContext::new(), &args).await? {
         return Ok(Some(source));
       }
     }
     Ok(None)
   }
 
-  pub fn render_startup(&self, args: RenderStartupArgs) -> PluginRenderStartupHookOutput {
+  pub async fn render_startup(&self, args: RenderStartupArgs<'_>) -> PluginRenderStartupHookOutput {
     let mut source = args.source;
     for plugin in &self.plugins {
-      if let Some(s) = plugin.render_startup(
-        PluginContext::new(),
-        &RenderStartupArgs {
-          source: source.clone(),
-          ..args
-        },
-      )? {
+      if let Some(s) = plugin
+        .render_startup(
+          PluginContext::new(),
+          &RenderStartupArgs {
+            source: source.clone(),
+            ..args
+          },
+        )
+        .await?
+      {
         source = s;
       }
     }

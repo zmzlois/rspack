@@ -300,7 +300,8 @@ impl JsPlugin {
           chunk: &chunk.ukey,
           module: *last_entry_module,
           source: startup,
-        })?
+        })
+        .await?
       {
         sources.add(source);
       }
@@ -314,11 +315,15 @@ impl JsPlugin {
       sources.boxed()
     };
     final_source = render_chunk_init_fragments(final_source, &mut chunk_init_fragments);
-    if let Some(source) = compilation.plugin_driver.render(RenderArgs {
-      compilation,
-      chunk: &args.chunk_ukey,
-      source: &final_source,
-    })? {
+    if let Some(source) = compilation
+      .plugin_driver
+      .render(RenderArgs {
+        compilation,
+        chunk: &args.chunk_ukey,
+        source: &final_source,
+      })
+      .await?
+    {
       return Ok(source);
     }
     Ok(final_source)

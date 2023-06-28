@@ -136,7 +136,7 @@ impl rspack_core::Plugin for JsHooksAdapter {
       .asset_path_tsfn
       .call(
         JsAssetPathArgs::from(args),
-        ThreadsafeFunctionCallMode::Blocking,
+        ThreadsafeFunctionCallMode::NonBlocking,
       )
       .into_rspack_result()?
       .await

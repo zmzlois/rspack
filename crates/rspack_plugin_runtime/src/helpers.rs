@@ -109,7 +109,7 @@ pub fn get_all_chunks(
   chunks
 }
 
-pub fn get_runtime_chunk_output_name(args: &RenderChunkArgs) -> Result<String> {
+pub async fn get_runtime_chunk_output_name(args: &RenderChunkArgs<'_>) -> Result<String> {
   let entry_point = {
     let entry_points = args
       .compilation
@@ -134,7 +134,7 @@ pub fn get_runtime_chunk_output_name(args: &RenderChunkArgs) -> Result<String> {
     .get(&entry_point.get_runtime_chunk())
     .ok_or_else(|| anyhow!("should has runtime chunk"))?;
 
-  Ok(get_chunk_output_name(runtime_chunk, args.compilation))
+  Ok(get_chunk_output_name(runtime_chunk, args.compilation).await)
 }
 
 pub fn generate_entry_startup(
@@ -242,13 +242,15 @@ pub fn get_relative_path(base_chunk_output_name: &str, other_chunk_output_name: 
   format!("{path}{}", other_chunk_output_name_arr.join("/"))
 }
 
-pub fn get_chunk_output_name(chunk: &Chunk, compilation: &Compilation) -> String {
+pub async fn get_chunk_output_name(chunk: &Chunk, compilation: &Compilation) -> String {
   let hash = chunk.get_render_hash(compilation.options.output.hash_digest_length);
-  compilation.get_path(
-    &compilation.options.output.chunk_filename,
-    PathData::default()
-      .chunk(chunk)
-      .content_hash_optional(hash)
-      .hash_optional(hash),
-  )
+  compilation
+    .get_path(
+      &compilation.options.output.chunk_filename,
+      PathData::default()
+        .chunk(chunk)
+        .content_hash_optional(hash)
+        .hash_optional(hash),
+    )
+    .await
 }

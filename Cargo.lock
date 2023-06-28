@@ -2679,6 +2679,8 @@ dependencies = [
 name = "rspack_plugin_library"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
+ "futures-util",
  "rspack_core",
  "rspack_error",
  "rspack_identifier",

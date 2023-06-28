@@ -1330,11 +1330,15 @@ impl Compilation {
       .map(|hash| hash.rendered(self.options.output.hash_digest_length))
   }
 
-  pub fn get_path<'b, 'a: 'b>(&'a self, filename: &Filename, mut data: PathData<'b>) -> String {
+  pub async fn get_path<'b, 'a: 'b>(
+    &'a self,
+    filename: &Filename,
+    mut data: PathData<'b>,
+  ) -> String {
     if data.hash.is_none() {
       data.hash = self.get_hash();
     }
-    self.get_asset_path(filename, data)
+    self.get_asset_path(filename, data).await
   }
 
   pub fn get_path_with_info<'b, 'a: 'b>(
@@ -1348,22 +1352,20 @@ impl Compilation {
     self.get_asset_path_with_info(filename, data)
   }
 
-  pub fn get_asset_path(&self, filename: &Filename, data: PathData<'_>) -> String {
-    tokio::task::block_in_place(move || {
-      tokio::runtime::Handle::current().block_on(async move {
-        let result = &self
-          .plugin_driver
-          .asset_path(filename.template().to_owned().to_string(), &data, None)
-          .await;
-        let new_file_name = match result {
-          Ok(result) => Filename::from(result.to_owned()),
-          Err(_) => {
-            panic!("Failed to get asset path");
-          }
-        };
-        new_file_name.render(data, None)
-      })
-    })
+  pub async fn get_asset_path(&self, filename: &Filename, data: PathData<'_>) -> String {
+    let result = self
+      .plugin_driver
+      .asset_path(filename.template().to_owned().to_string(), &data, None)
+      .await;
+    dbg!(&result);
+    // let result = Ok::<_, rspack_error::Error>("abc".to_owned());
+    let new_file_name = match result {
+      Ok(result) => Filename::from(result.to_owned()),
+      Err(_) => {
+        panic!("Failed to get asset path");
+      }
+    };
+    new_file_name.render(data, None)
   }
 
   pub fn get_asset_path_with_info(
