@@ -885,9 +885,16 @@ impl Compilation {
       .collect::<FuturesResults<_>>();
 
     let chunk_ukey_and_manifest = results.into_inner();
-
     for (chunk_ukey, manifest) in chunk_ukey_and_manifest.into_iter() {
-      for file_manifest in manifest.expect("We should return this error rathen expect") {
+      let manifest = match manifest {
+        Ok(manifest) => manifest,
+        Err(err) => {
+          self.push_batch_diagnostic(err.into());
+          std::process::exit(1);
+          return;
+        }
+      };
+      for file_manifest in manifest {
         let filename = file_manifest.filename().to_string();
 
         let current_chunk = self
