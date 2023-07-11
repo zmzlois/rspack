@@ -192,7 +192,13 @@ async fn process_resource<C: Send>(loader_context: &mut LoaderContext<'_, C>) ->
   }
 
   if loader_context.content.is_none() {
-    let result = tokio::fs::read(&loader_context.resource_data.resource_path).await?;
+    let result = match tokio::fs::read(&loader_context.resource_data.resource_path).await {
+      Ok(res) => res,
+      Err(err) => {
+        dbg!(err.to_string(), &loader_context.resource);
+        return Err(internal_error!(err.to_string()));
+      }
+    };
     loader_context.content = Some(Content::from(result));
   }
 
