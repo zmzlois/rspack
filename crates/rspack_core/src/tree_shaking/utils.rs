@@ -1,8 +1,12 @@
+use petgraph::stable_graph::{NodeIndex, StableDiGraph, StableGraph};
 use rspack_symbol::{IndirectTopLevelSymbol, StarSymbol, Symbol};
+use rustc_hash::FxHashSet as HashSet;
+use serde::Serialize;
 use swc_core::common::Mark;
 use swc_core::ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Ident, Lit};
 use swc_core::ecma::atoms::{js_word, JsWord};
 
+use super::symbol_graph::{generate_debug_symbol_graph, SymbolGraph};
 use super::visitor::SymbolRef;
 use crate::{ModuleGraph, ModuleIdentifier};
 
@@ -127,5 +131,29 @@ impl ConvertModulePath for ModuleIdentifier {
     } else {
       self
     }
+  }
+}
+
+#[derive(Serialize, Debug)]
+pub struct DebugInfo {
+  graph: StableGraph<SymbolRef, ()>,
+  use_symbol: HashSet<NodeIndex>,
+}
+
+pub fn generate_debug_info(
+  g: &SymbolGraph,
+  module_graph: &ModuleGraph,
+  used_symbol: &HashSet<SymbolRef>,
+) -> DebugInfo {
+  let debug_graph = generate_debug_symbol_graph(g, module_graph);
+  let mut used_symbol_node_index = HashSet::default();
+  for s in used_symbol.iter() {
+    if let Some(index) = g.get_node_index(s) {
+      used_symbol_node_index.insert(*index);
+    };
+  }
+  DebugInfo {
+    graph: debug_graph,
+    use_symbol: used_symbol_node_index,
   }
 }

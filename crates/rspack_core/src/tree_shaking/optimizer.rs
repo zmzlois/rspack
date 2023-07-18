@@ -1,12 +1,13 @@
 use std::{
   borrow::BorrowMut,
   collections::{hash_map::Entry, VecDeque},
+  fmt::Debug,
 };
 
 use petgraph::{
   algo,
   prelude::{DiGraphMap, GraphMap},
-  stable_graph::NodeIndex,
+  stable_graph::{NodeIndex, StableGraph},
   visit::{Bfs, Dfs, EdgeRef},
   Directed,
 };
@@ -32,8 +33,12 @@ use super::{
   BailoutFlag, ModuleUsedType, OptimizeDependencyResult, SideEffectType,
 };
 use crate::{
-  contextify, join_string_component, tree_shaking::utils::ConvertModulePath, Compilation,
-  DependencyType, ModuleGraph, ModuleIdentifier, ModuleType, NormalModuleAstOrSource,
+  contextify, join_string_component,
+  tree_shaking::{
+    symbol_graph::generate_debug_symbol_graph,
+    utils::{generate_debug_info, ConvertModulePath},
+  },
+  Compilation, DependencyType, ModuleGraph, ModuleIdentifier, ModuleType, NormalModuleAstOrSource,
 };
 
 pub struct CodeSizeOptimizer<'a> {
@@ -183,13 +188,6 @@ impl<'a> CodeSizeOptimizer<'a> {
       &mut visited_symbol_ref,
       &mut errors,
     );
-    // let debug_graph = generate_debug_symbol_graph(
-    //   &self.symbol_graph,
-    //   &self.compilation.module_graph,
-    //   &self.compilation.options.context.as_str().to_owned(),
-    // );
-    // let res = serde_json::to_string(&debug_graph).unwrap();
-    // println!("{}", res);
     self.check_symbol_query();
 
     let dead_nodes_index = HashSet::default();
@@ -201,6 +199,14 @@ impl<'a> CodeSizeOptimizer<'a> {
       visited_symbol_ref,
       &dead_nodes_index,
     );
+
+    let debug_info = generate_debug_info(
+      &self.symbol_graph,
+      &self.compilation.module_graph,
+      &used_symbol_ref,
+    );
+    let res = serde_json::to_string(&debug_info).unwrap();
+    println!("{}", res);
     Ok(
       OptimizeDependencyResult {
         used_symbol_ref,
@@ -1268,7 +1274,6 @@ async fn par_analyze_module(compilation: &mut Compilation) -> IdentifierMap<Opti
         //   &optimize_analyze_result.import_map,
         //   &optimize_analyze_result.side_effects
         // );
-
         Some((*module_identifier, optimize_analyze_result))
       })
       .collect::<IdentifierMap<OptimizeAnalyzeResult>>()
