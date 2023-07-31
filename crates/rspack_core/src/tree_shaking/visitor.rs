@@ -51,6 +51,7 @@ pub enum SymbolRef {
 enum ResolveState {
   Unresolved,
   TopLevel,
+  NotInterested,
 }
 
 impl SymbolRef {
@@ -390,7 +391,7 @@ impl<'a> ModuleRefAnalyze<'a> {
     default_ident
   }
 
-  fn check_commonjs_feature(&mut self, obj: &Ident, prop: &str) {
+  fn check_commonjs_feature(&mut self, member_chain: &Vec<(String, ResolveState)>) {
     if self.state.contains(AnalyzeState::ASSIGNMENT_LHS)
       && ((&obj.sym == "module" && prop == "exports") || &obj.sym == "exports")
     {
@@ -1606,7 +1607,21 @@ impl<'a> ModuleRefAnalyze<'a> {
     };
   }
 
-  fn extract_member_expression_chain(&self, expression: &Expr) -> Option<VecDeque<(String, bool)>> {
+  fn get_resolve_state(&self, mark: Mark) -> ResolveState {
+    let is_toplevel = self
+      .potential_top_level_mark
+      .contains(&ident.to_id().1.outer());
+    if is_toplevel {
+      ResolveState::TopLevel
+    } else if mark == self.unresolved_mark {
+      ResolveState::Unresolved
+    }
+  }
+
+  fn extract_member_expression_chain(
+    &self,
+    expression: &Expr,
+  ) -> Option<VecDeque<(String, ResolveState)>> {
     let mut members = VecDeque::new();
     let mut expr = expression;
 
@@ -1618,12 +1633,12 @@ impl<'a> ModuleRefAnalyze<'a> {
             ..
           }) = prop
           {
-            members.push_front((val.value.to_string(), false));
+            members.push_front((val.value.to_string(), ResolveState::NotInterested));
           } else if let MemberProp::Ident(ident) = prop {
-            let is_toplevel = self
-              .potential_top_level_mark
-              .contains(&ident.to_id().1.outer());
-            members.push_front((ident.sym.to_string(), is_toplevel));
+            members.push_front((
+              ident.sym.to_string(),
+              self.get_resolve_state(ident.to_id().1.outer()),
+            ));
           } else {
             break;
           }
@@ -1633,7 +1648,7 @@ impl<'a> ModuleRefAnalyze<'a> {
         _ => break,
       }
     }
-    if let Some((name, is_toplevel)) = members.get(0) && *is_toplevel {
+    if let Some((name, resolve_state)) = members.get(0) && !matches!(resolve_state, ResolveState::NotInterested) {
       Some(members)
     } else {
       None

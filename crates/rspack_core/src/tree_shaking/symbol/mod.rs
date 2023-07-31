@@ -361,7 +361,10 @@ impl PartialEq for SymbolExt {
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Part {
   Id(BetterId),
-  MemberExpr { object: BetterId, property: JsWord },
+  MemberExpr {
+    object: BetterId,
+    property: Vec<JsWord>,
+  },
   Url(JsWord),
   Worker(JsWord),
 }
