@@ -48,6 +48,11 @@ pub enum SymbolRef {
   },
 }
 
+enum ResolveState {
+  Unresolved,
+  TopLevel,
+}
+
 impl SymbolRef {
   pub fn src(&self) -> ModuleIdentifier {
     match self {
@@ -935,63 +940,65 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
   }
 
   fn visit_member_expr(&mut self, node: &MemberExpr) {
+    let extracted = self.extract_member_expression_chain(&node.obj);
+    if let Some(top_level_member_chain) = extracted {}
     match (&*node.obj, &node.prop) {
-      // a.b
-      (Expr::Ident(obj), MemberProp::Ident(prop)) => {
-        self.check_commonjs_feature(obj, &prop.sym);
-        let id: BetterId = obj.to_id().into();
-        let mark = id.ctxt.outer();
-
-        if self.potential_top_level_mark.contains(&mark) {
-          let member_expr = Part::MemberExpr {
-            object: id.clone(),
-            property: prop.sym.clone(),
-          };
-          match self.current_body_owner_symbol_ext {
-            Some(ref body_owner_symbol_ext) => {
-              if body_owner_symbol_ext.id() != &id {
-                self.add_reference(body_owner_symbol_ext.clone(), member_expr, false);
-              } else if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
-                self.add_reference(body_owner_symbol_ext.clone(), member_expr, true);
-              }
-            }
-            None => {
-              self.used_id_set.insert(member_expr);
-            }
-          }
-        }
-      }
-      // obj['prop']
-      (
-        Expr::Ident(obj),
-        MemberProp::Computed(ComputedPropName {
-          expr: box Expr::Lit(Lit::Str(Str { value, .. })),
-          ..
-        }),
-      ) => {
-        self.check_commonjs_feature(obj, value);
-
-        let id: BetterId = obj.to_id().into();
-        let mark = id.ctxt.outer();
-        if self.potential_top_level_mark.contains(&mark) {
-          let member_expr = Part::MemberExpr {
-            object: id.clone(),
-            property: value.clone(),
-          };
-          match self.current_body_owner_symbol_ext {
-            Some(ref body_owner_symbol_ext) => {
-              if body_owner_symbol_ext.id() != &id {
-                self.add_reference(body_owner_symbol_ext.clone(), member_expr, false);
-              } else if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
-                self.add_reference(body_owner_symbol_ext.clone(), member_expr, true);
-              }
-            }
-            None => {
-              self.used_id_set.insert(member_expr);
-            }
-          }
-        }
-      }
+      // // a.b
+      // (Expr::Ident(obj), prop) => {
+      //   self.check_commonjs_feature(obj, &prop.sym);
+      //   let id: BetterId = obj.to_id().into();
+      //   let mark = id.ctxt.outer();
+      //
+      //   if self.potential_top_level_mark.contains(&mark) {
+      //     let member_expr = Part::MemberExpr {
+      //       object: id.clone(),
+      //       property: prop.sym.clone(),
+      //     };
+      //     match self.current_body_owner_symbol_ext {
+      //       Some(ref body_owner_symbol_ext) => {
+      //         if body_owner_symbol_ext.id() != &id {
+      //           self.add_reference(body_owner_symbol_ext.clone(), member_expr, false);
+      //         } else if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
+      //           self.add_reference(body_owner_symbol_ext.clone(), member_expr, true);
+      //         }
+      //       }
+      //       None => {
+      //         self.used_id_set.insert(member_expr);
+      //       }
+      //     }
+      //   }
+      // }
+      // // obj['prop']
+      // (
+      //   Expr::Ident(obj),
+      //   MemberProp::Computed(ComputedPropName {
+      //     expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+      //     ..
+      //   }),
+      // ) => {
+      //   self.check_commonjs_feature(obj, value);
+      //
+      //   let id: BetterId = obj.to_id().into();
+      //   let mark = id.ctxt.outer();
+      //   if self.potential_top_level_mark.contains(&mark) {
+      //     let member_expr = Part::MemberExpr {
+      //       object: id.clone(),
+      //       property: value.clone(),
+      //     };
+      //     match self.current_body_owner_symbol_ext {
+      //       Some(ref body_owner_symbol_ext) => {
+      //         if body_owner_symbol_ext.id() != &id {
+      //           self.add_reference(body_owner_symbol_ext.clone(), member_expr, false);
+      //         } else if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
+      //           self.add_reference(body_owner_symbol_ext.clone(), member_expr, true);
+      //         }
+      //       }
+      //       None => {
+      //         self.used_id_set.insert(member_expr);
+      //       }
+      //     }
+      //   }
+      // }
       _ => {
         node.visit_children_with(self);
       }
@@ -1597,6 +1604,40 @@ impl<'a> ModuleRefAnalyze<'a> {
           }
         });
     };
+  }
+
+  fn extract_member_expression_chain(&self, expression: &Expr) -> Option<VecDeque<(String, bool)>> {
+    let mut members = VecDeque::new();
+    let mut expr = expression;
+
+    loop {
+      match expr {
+        Expr::Member(MemberExpr { obj, prop, span: _ }) => {
+          if let MemberProp::Computed(ComputedPropName {
+            expr: box Expr::Lit(Lit::Str(val)),
+            ..
+          }) = prop
+          {
+            members.push_front((val.value.to_string(), false));
+          } else if let MemberProp::Ident(ident) = prop {
+            let is_toplevel = self
+              .potential_top_level_mark
+              .contains(&ident.to_id().1.outer());
+            members.push_front((ident.sym.to_string(), is_toplevel));
+          } else {
+            break;
+          }
+
+          expr = obj;
+        }
+        _ => break,
+      }
+    }
+    if let Some((name, is_toplevel)) = members.get(0) && *is_toplevel {
+      Some(members)
+    } else {
+      None
+    }
   }
 
   /// Try to get the module_identifier from `src`, `dependency_type`, and `importer`
