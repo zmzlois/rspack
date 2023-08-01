@@ -8,7 +8,7 @@ use swc_core::common::SyntaxContext;
 use swc_core::common::{util::take::Take, Mark, GLOBALS};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::{js_word, JsWord};
-use swc_core::ecma::utils::{ExprCtx, ExprExt};
+use swc_core::ecma::utils::{member_expr, ExprCtx, ExprExt};
 use swc_core::ecma::visit::{noop_visit_type, Visit, VisitWith};
 use swc_node_comments::SwcComments;
 
@@ -51,6 +51,7 @@ pub enum SymbolRef {
   },
 }
 
+#[derive(Debug, PartialEq, Eq)]
 enum ResolveState {
   Unresolved,
   TopLevel,
@@ -379,27 +380,28 @@ impl<'a> ModuleRefAnalyze<'a> {
           });
           ret
         }
-        Part::MemberExpr { object, property } => {
-          self
-            .import_map
-            .get(&object.atom)
-            .map(|sym_ref| match sym_ref {
-              SymbolRef::Indirect(_) => SymbolRef::Usage(
-                object.clone(),
-                vec![property.clone()],
-                self.module_identifier,
-              ),
-              SymbolRef::Star(_) => SymbolRef::Usage(
-                object.clone(),
-                vec![property.clone()],
-                self.module_identifier,
-              ),
-              SymbolRef::Url { .. }
-              | SymbolRef::Worker { .. }
-              | SymbolRef::Declaration(_)
-              | SymbolRef::Usage(..) => unreachable!(),
-            })
-        }
+        Part::MemberExpr {
+          first: object,
+          rest: property,
+        } => self
+          .import_map
+          .get(&object.atom)
+          .map(|sym_ref| match sym_ref {
+            SymbolRef::Indirect(_) => SymbolRef::Usage(
+              object.clone(),
+              vec![property.clone()],
+              self.module_identifier,
+            ),
+            SymbolRef::Star(_) => SymbolRef::Usage(
+              object.clone(),
+              vec![property.clone()],
+              self.module_identifier,
+            ),
+            SymbolRef::Url { .. }
+            | SymbolRef::Worker { .. }
+            | SymbolRef::Declaration(_)
+            | SymbolRef::Usage(..) => unreachable!(),
+          }),
         Part::Url(src) => {
           let dep_id = self
             .resolve_module_identifier(src, &DependencyType::NewUrl)
@@ -433,10 +435,14 @@ impl<'a> ModuleRefAnalyze<'a> {
     default_ident
   }
 
-  fn check_commonjs_feature(&mut self, member_chain: &Vec<(String, ResolveState)>) {
-    if self.state.contains(AnalyzeState::ASSIGNMENT_LHS)
-      && ((&obj.sym == "module" && prop == "exports") || &obj.sym == "exports")
-    {
+  fn check_commonjs_feature(&mut self, member_chain: &VecDeque<(JsWord, ResolveState)>) {
+    if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
+      match member_chain.as_slice() {
+        [(js_word!("module"), ResolveState::Unresolved), (second, ResolveState::Unresolved), ..]
+          if second == "exports" => {}
+        [(first, ResolveState::Unresolved), ..] if first == "exports" => {}
+        _ => return,
+      }
       self.module_syntax.insert(ModuleSyntax::COMMONJS);
       match self
         .bail_out_module_identifiers
@@ -515,7 +521,10 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
               // Only used id imported from other module would generate a side effects.
               let id = match ref_part {
                 Part::TopLevelId(ref id) => id,
-                Part::MemberExpr { object, property } => match self.import_map.get(&object.atom) {
+                Part::MemberExpr {
+                  first: object,
+                  rest: property,
+                } => match self.import_map.get(&object.atom) {
                   Some(_) => {
                     return HashSet::from_iter([SymbolRef::Usage(
                       object.clone(),
@@ -573,7 +582,10 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
             // Only used id imported from other module would generate a side effects.
             let id = match ref_part {
               Part::TopLevelId(ref id) => id,
-              Part::MemberExpr { object, property } => match self.import_map.get(&object.atom) {
+              Part::MemberExpr {
+                first: object,
+                rest: property,
+              } => match self.import_map.get(&object.atom) {
                 Some(_) => {
                   return HashSet::from_iter([SymbolRef::Usage(
                     object.clone(),
@@ -623,7 +635,10 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
           let reachable_import = self.get_all_import_or_export(id.clone(), true);
           self.used_symbol_ref.extend(reachable_import);
         }
-        Part::MemberExpr { object, property } => match self.import_map.get(&object.atom) {
+        Part::MemberExpr {
+          first: object,
+          rest: property,
+        } => match self.import_map.get(&object.atom) {
           Some(_) => {
             self.used_symbol_ref.insert(SymbolRef::Usage(
               object.clone(),
@@ -976,8 +991,33 @@ impl<'a> Visit for ModuleRefAnalyze<'a> {
   }
 
   fn visit_member_expr(&mut self, node: &MemberExpr) {
-    let extracted = self.extract_member_expression_chain(&node.obj);
-    if let Some(top_level_member_chain) = extracted {}
+    let extracted = self.extract_member_expression_chain(node);
+    if let Some(top_level_member_chain) = extracted {
+      self.check_commonjs_feature(&top_level_member_chain);
+      if top_level_member_chain[0].1 == ResolveState::TopLevel {
+        let first = top_level_member_chain[0].0;
+        let member_expr = Part::MemberExpr {
+          first: first.clone(),
+          rest: top_level_member_chain
+            .into_iter()
+            .skip(1)
+            .map(|(name, state)| name)
+            .collect::<Vec<_>>(),
+        };
+        match self.current_body_owner_symbol_ext {
+          Some(ref body_owner_symbol_ext) => {
+            if body_owner_symbol_ext.id().atom != first {
+              self.add_reference(body_owner_symbol_ext.clone(), member_expr, false);
+            } else if self.state.contains(AnalyzeState::ASSIGNMENT_LHS) {
+              self.add_reference(body_owner_symbol_ext.clone(), member_expr, true);
+            }
+          }
+          None => {
+            self.used_id_set.insert(member_expr);
+          }
+        }
+      }
+    }
     match (&*node.obj, &node.prop) {
       // // a.b
       // (Expr::Ident(obj), prop) => {
@@ -1645,42 +1685,41 @@ impl<'a> ModuleRefAnalyze<'a> {
   }
 
   fn get_resolve_state(&self, mark: Mark) -> ResolveState {
-    let is_toplevel = self
-      .potential_top_level_mark
-      .contains(&ident.to_id().1.outer());
+    let is_toplevel = self.potential_top_level_mark.contains(&mark);
     if is_toplevel {
       ResolveState::TopLevel
     } else if mark == self.unresolved_mark {
       ResolveState::Unresolved
+    } else {
+      ResolveState::NotInterested
     }
   }
 
   fn extract_member_expression_chain(
     &self,
-    expression: &Expr,
-  ) -> Option<VecDeque<(String, ResolveState)>> {
+    expression: &MemberExpr,
+  ) -> Option<VecDeque<(JsWord, ResolveState)>> {
     let mut members = VecDeque::new();
     let mut expr = expression;
 
     loop {
-      match expr {
-        Expr::Member(MemberExpr { obj, prop, span: _ }) => {
-          if let MemberProp::Computed(ComputedPropName {
-            expr: box Expr::Lit(Lit::Str(val)),
-            ..
-          }) = prop
-          {
-            members.push_front((val.value.to_string(), ResolveState::NotInterested));
-          } else if let MemberProp::Ident(ident) = prop {
-            members.push_front((
-              ident.sym.to_string(),
-              self.get_resolve_state(ident.to_id().1.outer()),
-            ));
-          } else {
-            break;
-          }
-
-          expr = obj;
+      if let MemberProp::Computed(ComputedPropName {
+        expr: box Expr::Lit(Lit::Str(ref val)),
+        ..
+      }) = expr.prop
+      {
+        members.push_front((val.value.clone(), ResolveState::NotInterested));
+      } else if let MemberProp::Ident(ref ident) = expr.prop {
+        members.push_front((
+          ident.sym.clone(),
+          self.get_resolve_state(ident.to_id().1.outer()),
+        ));
+      } else {
+        break;
+      }
+      match expr.obj {
+        box Expr::Member(ref member_expr) => {
+          expr = member_expr;
         }
         _ => break,
       }

@@ -360,11 +360,8 @@ impl PartialEq for SymbolExt {
 /// We use [Part::MemberExpr] to represent namespace access
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Part {
-  Id(BetterId),
-  MemberExpr {
-    object: BetterId,
-    property: Vec<JsWord>,
-  },
+  TopLevelId(JsWord),
+  MemberExpr { first: JsWord, rest: Vec<JsWord> },
   Url(JsWord),
   Worker(JsWord),
 }
@@ -389,7 +386,7 @@ impl Part {
   pub fn get_id(&self) -> Option<&BetterId> {
     match self {
       Part::TopLevelId(id) => Some(id),
-      Part::MemberExpr { object, .. } => Some(object),
+      Part::MemberExpr { first, .. } => Some(object),
       Part::Url(_) | Part::Worker(_) => None,
     }
   }
