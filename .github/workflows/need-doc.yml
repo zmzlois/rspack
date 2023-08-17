@@ -6,6 +6,8 @@ on:
   pull_request:
     types:
       - closed
+  issues:
+    types: [labeled]
 
 jobs:
   doc:
@@ -13,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'need documentation') }}
     steps:
+      - name: Check label added
+        run: |
+          echo "The label ${{ github.event.label.name }} was added to issue #${{ github.event.issue.number }}"
       - uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.RSPACK_WEBSITE_ACCESS_TOKEN }}
