@@ -13,20 +13,22 @@ use crate::RuntimeSpec;
 
 #[derive(Debug)]
 pub struct ExportsInfo {
+  module_id: ModuleIdentifier,
   pub exports: HashMap<JsWord, ExportInfo>,
   other_exports_info: ExportInfo,
-  _side_effects_only_info: ExportInfo,
-  _exports_are_ordered: bool,
+  side_effects_only_info: ExportInfo,
+  exports_are_ordered: bool,
   redirect_to: Option<Box<ExportsInfo>>,
 }
 
 impl ExportsInfo {
-  pub fn new() -> Self {
+  pub fn new(module_id: ModuleIdentifier) -> Self {
     Self {
+      module_id,
       exports: HashMap::default(),
       other_exports_info: ExportInfo::new("null".into(), UsageState::Unknown),
-      _side_effects_only_info: ExportInfo::new("*side effects only*".into(), UsageState::Unknown),
-      _exports_are_ordered: false,
+      side_effects_only_info: ExportInfo::new("*side effects only*".into(), UsageState::Unknown),
+      exports_are_ordered: false,
       redirect_to: None,
     }
   }
@@ -71,12 +73,6 @@ impl ExportsInfo {
     } else {
       &self.other_exports_info
     }
-  }
-}
-
-impl Default for ExportsInfo {
-  fn default() -> Self {
-    Self::new()
   }
 }
 

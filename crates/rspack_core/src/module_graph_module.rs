@@ -48,7 +48,7 @@ impl ModuleGraphModule {
       factory_meta: None,
       build_info: None,
       build_meta: None,
-      exports: ExportsInfo::new(),
+      exports: ExportsInfo::new(module_identifier),
       profile: None,
     }
   }
