@@ -13,10 +13,13 @@ use crate::RuntimeSpec;
 
 #[derive(Debug)]
 pub struct ExportsInfo {
+  #[allow(unused)]
   module_id: ModuleIdentifier,
   pub exports: HashMap<JsWord, ExportInfo>,
   other_exports_info: ExportInfo,
+  #[allow(unused)]
   side_effects_only_info: ExportInfo,
+  #[allow(unused)]
   exports_are_ordered: bool,
   redirect_to: Option<Box<ExportsInfo>>,
 }
