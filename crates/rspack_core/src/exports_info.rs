@@ -89,6 +89,7 @@ pub struct ExportInfo {
   _name: JsWord,
   module_identifier: Option<ModuleIdentifier>,
   pub usage_state: UsageState,
+  pub global_used: Option<UsageState>,
 }
 
 impl ExportInfo {
@@ -97,6 +98,7 @@ impl ExportInfo {
       _name,
       module_identifier: None,
       usage_state,
+      global_used: None,
     }
   }
 
@@ -110,15 +112,81 @@ impl ExportInfo {
       .module_identifier
       .map(|id| module_graph.get_exports_info(&id))
   }
+  /**
+   * @param {function(UsageStateType): boolean} condition compare with old value
+   * @param {UsageStateType} newValue set when condition is true
+   * @param {RuntimeSpec} runtime only apply to this runtime
+   * @returns {boolean} true when something has changed
+   */
+  // setUsedConditionally(condition, newValue, runtime) {
+  // 	if (runtime === undefined) {
+  // 		if (this._globalUsed === undefined) {
+  // 			this._globalUsed = newValue;
+  // 			return true;
+  // 		} else {
+  // 			if (this._globalUsed !== newValue && condition(this._globalUsed)) {
+  // 				this._globalUsed = newValue;
+  // 				return true;
+  // 			}
+  // 		}
+  // 	} else if (this._usedInRuntime === undefined) {
+  // 		if (newValue !== UsageState.Unused && condition(UsageState.Unused)) {
+  // 			this._usedInRuntime = new Map();
+  // 			forEachRuntime(runtime, runtime =>
+  // 				this._usedInRuntime.set(runtime, newValue)
+  // 			);
+  // 			return true;
+  // 		}
+  // 	} else {
+  // 		let changed = false;
+  // 		forEachRuntime(runtime, runtime => {
+  // 			/** @type {UsageStateType} */
+  // 			let oldValue = this._usedInRuntime.get(runtime);
+  // 			if (oldValue === undefined) oldValue = UsageState.Unused;
+  // 			if (newValue !== oldValue && condition(oldValue)) {
+  // 				if (newValue === UsageState.Unused) {
+  // 					this._usedInRuntime.delete(runtime);
+  // 				} else {
+  // 					this._usedInRuntime.set(runtime, newValue);
+  // 				}
+  // 				changed = true;
+  // 			}
+  // 		});
+  // 		if (changed) {
+  // 			if (this._usedInRuntime.size === 0) this._usedInRuntime = undefined;
+  // 			return true;
+  // 		}
+  // 	}
+  // 	return false;
+  // }
+  pub fn set_used_conditionally(
+    &mut self,
+    condition: Box<dyn Fn(UsageState) -> bool>,
+    new_value: UsageState,
+    runtime: Option<&RuntimeSpec>,
+  ) -> bool {
+    if let Some(runtime) = runtime {
+      // TODO: runtime optimization
+    } else {
+      if let Some(ref mut used) = self.global_used && *used != new_value && condition(*used) {
+        *used = new_value;
+        return true;
+      } else {
+        self.global_used = Some(new_value);
+        return true;
+      }
+    }
+    return false;
+  }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum UsageState {
-  Unused,
-  OnlyPropertiesUsed,
-  NoInfo,
-  Unknown,
-  Used,
+  Unused = 0,
+  OnlyPropertiesUsed = 1,
+  NoInfo = 2,
+  Unknown = 3,
+  Used = 4,
 }
 
 #[derive(Debug, Clone, Default)]

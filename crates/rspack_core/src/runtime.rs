@@ -2,6 +2,8 @@ use std::{cmp::Ordering, fmt::Debug, sync::Arc};
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+use crate::{Compilation, EntryOptions};
+
 pub type RuntimeSpec = HashSet<Arc<str>>;
 pub type RuntimeKey = String;
 
@@ -159,4 +161,28 @@ impl RuntimeSpecSet {
   pub fn is_empty(&self) -> bool {
     self.len() == 0
   }
+}
+
+pub fn get_entry_runtime(
+  compilation: &Compilation,
+  name: &str,
+  options: Option<&EntryOptions>,
+) -> RuntimeSpec {
+  let runtime = if let Some(options) = options {
+    options.runtime.clone()
+  } else {
+    let entry = compilation.entries.get(name);
+    entry.and_then(|entry| entry.options.runtime.clone())
+  }
+  .unwrap_or("".to_string());
+  // TODO: depend on
+
+  RuntimeSpec::from_iter([runtime.into()])
+}
+
+pub fn merge_runtime_owned(mut a: RuntimeSpec, b: RuntimeSpec) -> RuntimeSpec {
+  for r in b.into_iter() {
+    a.insert(r);
+  }
+  a
 }
