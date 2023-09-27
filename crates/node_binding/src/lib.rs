@@ -49,6 +49,38 @@ static NEXT_COMPILER_ID: AtomicU32 = AtomicU32::new(0);
 
 type CompilerId = u32;
 
+#[napi]
+pub fn test_sanitizer() {
+  // 创建一个包含5个元素的向量
+  let mut v = vec![1, 2, 3, 4, 5];
+
+  // 不安全地获取向量的原始指针
+  let ptr = v.as_mut_ptr();
+
+  // 故意越界访问：访问向量之外的内存
+  unsafe {
+    // 这里假设向量长度为 5，但尝试访问第六个元素
+    // 这将导致缓冲区越界
+    let value = *ptr.add(5);
+    println!("Value: {}", value);
+  }
+  return;
+  let mut a = String::from("test");
+  println!("{a:?}");
+  let l = a.len();
+  let c = a.capacity();
+  let ptr = a.as_mut_ptr();
+  drop(a);
+  let mut a = unsafe { String::from_raw_parts(ptr, l, c) };
+  a.push_str("heihei");
+  println!("{a}");
+}
+
+#[napi]
+pub fn prin() {
+  println!("{}", "abc");
+}
+
 #[napi(custom_finalize)]
 pub struct Rspack {
   id: CompilerId,

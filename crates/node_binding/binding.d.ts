@@ -483,6 +483,8 @@ export interface PathWithInfo {
   info: JsAssetInfo
 }
 
+export function prin(): void
+
 export interface RawAssetGeneratorDataUrl {
   type: "options"
   options?: RawAssetGeneratorDataUrlOptions
@@ -1080,6 +1082,8 @@ export function registerGlobalTrace(filter: string, layer: "chrome" | "logger", 
 
 /** Builtin loader runner */
 export function runBuiltinLoader(builtin: string, options: string | undefined | null, loaderContext: JsLoaderContext): Promise<JsLoaderContext>
+
+export function testSanitizer(): void
 
 export interface ThreadsafeNodeFS {
   writeFile: (...args: any[]) => any
