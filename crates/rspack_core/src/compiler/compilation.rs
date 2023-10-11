@@ -1017,25 +1017,24 @@ impl Compilation {
                 counter.miss();
               }
             }
+            let result = Arc::new(result);
             compilation.code_generated_modules.insert(module_identifier);
 
             let runtimes = compilation
               .chunk_graph
               .get_module_runtimes(module_identifier, &compilation.chunk_by_ukey);
-            let result_id = result.id;
-            compilation
-              .code_generation_results
-              .module_generation_result_map
-              .insert(result.id, result);
             if used_exports_optimization {
               compilation
                 .code_generation_results
-                .add(module_identifier, runtime, result_id);
+                .add(module_identifier, runtime, result);
             } else {
+              // TODO: remove this branch after we finished runtime optimization.
               for runtime in runtimes.into_values() {
-                compilation
-                  .code_generation_results
-                  .add(module_identifier, runtime, result_id);
+                compilation.code_generation_results.add(
+                  module_identifier,
+                  runtime,
+                  Arc::clone(&result),
+                );
               }
             }
           })

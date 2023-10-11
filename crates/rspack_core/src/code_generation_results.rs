@@ -1,16 +1,14 @@
 use std::collections::hash_map::Entry;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::AtomicU32;
+use std::sync::Arc;
 
 use anymap::CloneAny;
-use once_cell::sync::Lazy;
 use rspack_error::{internal_error, Result};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash, RspackHashDigest};
 use rspack_identifier::IdentifierMap;
 use rspack_sources::BoxSource;
 use rustc_hash::FxHashMap as HashMap;
-use serde::Serialize;
 
 use crate::{
   AssetInfo, ChunkInitFragments, ModuleIdentifier, RuntimeGlobals, RuntimeMode, RuntimeSpec,
@@ -89,7 +87,6 @@ pub struct CodeGenerationResult {
   pub chunk_init_fragments: ChunkInitFragments,
   pub runtime_requirements: RuntimeGlobals,
   pub hash: Option<RspackHashDigest>,
-  pub id: CodeGenResultId,
 }
 
 impl CodeGenerationResult {
@@ -137,21 +134,10 @@ impl CodeGenerationResult {
   }
 }
 
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
-pub struct CodeGenResultId(u32);
-
-impl Default for CodeGenResultId {
-  fn default() -> Self {
-    Self(CODE_GEN_RESULT_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-  }
-}
-
-pub static CODE_GEN_RESULT_ID: Lazy<AtomicU32> = Lazy::new(|| AtomicU32::new(0));
-
 #[derive(Debug, Default)]
 pub struct CodeGenerationResults {
-  pub module_generation_result_map: HashMap<CodeGenResultId, CodeGenerationResult>,
-  map: IdentifierMap<RuntimeSpecMap<CodeGenResultId>>,
+  // TODO: remove Arc after we finished runtime optimization.
+  map: IdentifierMap<RuntimeSpecMap<Arc<CodeGenerationResult>>>,
 }
 
 impl CodeGenerationResults {
@@ -161,21 +147,15 @@ impl CodeGenerationResults {
       .get(module_identifier)
       .and_then(|spec| match spec.mode {
         RuntimeMode::Empty => None,
-        RuntimeMode::SingleEntry => spec
-          .single_value
-          .and_then(|result_id| self.module_generation_result_map.get(&result_id)),
-        RuntimeMode::Map => spec
-          .map
-          .values()
-          .next()
-          .and_then(|result_id| self.module_generation_result_map.get(result_id)),
+        RuntimeMode::SingleEntry => spec.single_value.as_deref(),
+        RuntimeMode::Map => spec.map.values().next().map(|v| &**v),
       })
   }
 
   pub fn clear_entry(
     &mut self,
     module_identifier: &ModuleIdentifier,
-  ) -> Option<(ModuleIdentifier, RuntimeSpecMap<CodeGenResultId>)> {
+  ) -> Option<(ModuleIdentifier, RuntimeSpecMap<Arc<CodeGenerationResult>>)> {
     self.map.remove_entry(module_identifier)
   }
 
@@ -188,10 +168,7 @@ impl CodeGenerationResults {
       if let Some(runtime) = runtime {
         entry
           .get(runtime)
-          .and_then(|m| {
-            // dbg!(self.module_generation_result_map.contains_key(m));
-            self.module_generation_result_map.get(m)
-          })
+          .map(|v| &**v)
           .ok_or_else(|| {
             internal_error!(
               "Failed to code generation result for {module_identifier} with runtime {runtime:?} \n {entry:?}"
@@ -208,16 +185,14 @@ impl CodeGenerationResults {
 
           return results
             .first()
-            .copied()
-            .and_then(|m| self.module_generation_result_map.get(m))
+            .map(|r| &***r)
             .ok_or_else(|| internal_error!("Expected value exists"));
         }
 
         entry
           .get_values()
           .first()
-          .copied()
-          .and_then(|m| self.module_generation_result_map.get(m))
+          .map(|r| &***r)
           .ok_or_else(|| internal_error!("Expected value exists"))
       }
     } else {
@@ -233,7 +208,7 @@ impl CodeGenerationResults {
     &mut self,
     module_identifier: ModuleIdentifier,
     runtime: RuntimeSpec,
-    result: CodeGenResultId,
+    result: Arc<CodeGenerationResult>,
   ) {
     match self.map.entry(module_identifier) {
       Entry::Occupied(mut record) => {
