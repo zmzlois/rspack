@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct WorkerQueue<T> {
   inner: VecDeque<T>,
 }

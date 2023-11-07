@@ -6,6 +6,14 @@ const config = {
 		new rspack.HtmlRspackPlugin({
 			template: "./index.html"
 		})
-	]
+	],
+	module: {
+		rules: [
+			{
+				test: /index\.js/,
+				loader: "builtin:mini-css-extract-rspack-plugin"
+			}
+		]
+	}
 };
 module.exports = config;

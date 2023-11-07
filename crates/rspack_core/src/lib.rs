@@ -3,6 +3,7 @@
 #![feature(iter_intersperse)]
 #![feature(box_patterns)]
 #![feature(anonymous_lifetime_in_impl_trait)]
+#![feature(trait_upcasting)]
 
 use std::sync::atomic::AtomicBool;
 use std::{fmt, sync::Arc};

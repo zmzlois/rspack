@@ -62,7 +62,6 @@ impl Plugin for JsLoaderResolver {
     } else {
       Path::new(loader_request)
     };
-
     if loader_request.starts_with(BUILTIN_LOADER_PREFIX) {
       return Ok(Some(get_builtin_loader(loader_request, loader_options)));
     }

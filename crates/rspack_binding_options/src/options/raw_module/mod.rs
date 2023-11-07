@@ -19,6 +19,7 @@ use rspack_error::internal_error;
 use rspack_loader_react_refresh::REACT_REFRESH_LOADER_IDENTIFIER;
 use rspack_loader_sass::SASS_LOADER_IDENTIFIER;
 use rspack_loader_swc::SWC_LOADER_IDENTIFIER;
+use rspack_plugin_mini_css_extract::MINI_CSS_EXTRACT_LOADER;
 use serde::Deserialize;
 use {
   rspack_napi_shared::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -46,10 +47,15 @@ pub fn get_builtin_loader(builtin: &str, options: Option<&str>) -> BoxLoader {
       .with_identifier(builtin.into()),
     );
   }
+
   if builtin.starts_with(REACT_REFRESH_LOADER_IDENTIFIER) {
     return Arc::new(
       rspack_loader_react_refresh::ReactRefreshLoader::default().with_identifier(builtin.into()),
     );
+  }
+
+  if builtin.starts_with(MINI_CSS_EXTRACT_LOADER) {
+    return Arc::new(rspack_plugin_mini_css_extract::MiniCssLoader::default());
   }
 
   unreachable!("Unexpected builtin loader: {builtin}")
