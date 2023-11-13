@@ -679,7 +679,7 @@ export interface RawCacheGroupOptions {
   type?: RegExp | string
   automaticNameDelimiter?: string
   minChunks?: number
-  minSize?: number
+  minSize?: RawSplitChunksSizesOptions
   maxSize?: number
   maxAsyncSize?: number
   maxInitialSize?: number
@@ -895,7 +895,7 @@ export interface RawExtractComments {
 
 export interface RawFallbackCacheGroupOptions {
   chunks?: RegExp | 'async' | 'initial' | 'all'
-  minSize?: number
+  minSize?: RawSplitChunksSizesOptions
   maxSize?: number
   maxAsyncSize?: number
   maxInitialSize?: number
@@ -1346,12 +1346,20 @@ export interface RawSplitChunksOptions {
   defaultSizeTypes: Array<string>
   minChunks?: number
   hidePathInfo?: boolean
-  minSize?: number
+  minSize?: RawSplitChunksSizesOptions
   enforceSizeThreshold?: number
   minRemainingSize?: number
   maxSize?: number
   maxAsyncSize?: number
   maxInitialSize?: number
+}
+
+export interface RawSplitChunksSizesOptions {
+  javascript?: number
+  css?: number
+  wasm?: number
+  asset?: number
+  unknown?: number
 }
 
 export interface RawStatsOptions {

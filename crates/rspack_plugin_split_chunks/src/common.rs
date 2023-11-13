@@ -43,6 +43,10 @@ pub fn create_regex_chunk_filter_from_str(re: RspackRegex) -> ChunkFilter {
 pub struct SplitChunkSizes(pub(crate) FxHashMap<SourceType, f64>);
 
 impl SplitChunkSizes {
+  pub fn new(map: FxHashMap<SourceType, f64>) -> Self {
+    Self(map)
+  }
+
   pub fn empty() -> Self {
     Self(Default::default())
   }

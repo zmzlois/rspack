@@ -22,7 +22,8 @@ import type {
 	RawParserOptions,
 	RawRspackFuture,
 	RawRuleSetCondition,
-	RawRuleSetLogicalConditions
+	RawRuleSetLogicalConditions,
+	RawSplitChunksSizesOptions
 } from "@rspack/binding";
 import assert from "assert";
 
@@ -38,44 +39,41 @@ import {
 	LoaderDefinitionFunction
 } from "./adapterRuleUse";
 import {
-	ExperimentsNormalized,
-	ModuleOptionsNormalized,
-	OutputNormalized,
-	RspackOptionsNormalized
-} from "./normalization";
-import {
-	AssetGeneratorDataUrl,
-	AssetGeneratorOptions,
-	AssetInlineGeneratorOptions,
-	AssetParserDataUrl,
-	AssetParserOptions,
-	AssetResourceGeneratorOptions,
-	ChunkLoading,
 	CrossOriginLoading,
-	CssAutoGeneratorOptions,
-	CssAutoParserOptions,
-	CssGeneratorOptions,
-	CssModuleGeneratorOptions,
-	CssModuleParserOptions,
-	CssParserOptions,
-	EntryRuntime,
-	Environment,
-	GeneratorOptionsByModuleType,
-	JavascriptParserOptions,
-	LibraryName,
 	LibraryOptions,
 	Node,
 	Optimization,
-	ParserOptionsByModuleType,
 	Resolve,
-	RspackFutureOptions,
 	RuleSetCondition,
 	RuleSetLogicalConditions,
 	RuleSetRule,
 	SnapshotOptions,
 	StatsValue,
-	Target
+	Target,
+	AssetGeneratorDataUrl,
+	AssetGeneratorOptions,
+	AssetInlineGeneratorOptions,
+	AssetResourceGeneratorOptions,
+	AssetParserDataUrl,
+	AssetParserOptions,
+	ParserOptionsByModuleType,
+	GeneratorOptionsByModuleType,
+	OptimizationSplitChunksOptions,
+	RspackFutureOptions,
+	JavascriptParserOptions,
+	OptimizationSplitChunksSizes,
+	LibraryName,
+	CssParserOptions,
+	CssGeneratorOptions,
+	CssAutoGeneratorOptions,
+	ChunkLoading
 } from "./zod";
+import {
+	ExperimentsNormalized,
+	ModuleOptionsNormalized,
+	OutputNormalized,
+	RspackOptionsNormalized
+} from "./normalization";
 
 export type { LoaderContext, LoaderDefinition, LoaderDefinitionFunction };
 
