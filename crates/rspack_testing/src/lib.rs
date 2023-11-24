@@ -2,6 +2,7 @@ mod eval_raw;
 mod loader;
 mod run_fixture;
 mod test_config;
+pub use async_trait;
 pub use eval_raw::{evaluate_js, evaluate_to_json};
 pub use run_fixture::{
   apply_from_fixture, test_fixture, test_fixture_css, test_fixture_css_modules, test_fixture_html,

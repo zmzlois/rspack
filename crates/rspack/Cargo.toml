@@ -16,6 +16,8 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread", "macros"] }
 
 [dev-dependencies]
 rspack_binding_options   = { path = "../rspack_binding_options" }
+rspack_error             = { path = "../rspack_error" }
+rspack_plugin_entry      = { path = "../rspack_plugin_entry" }
 rspack_plugin_javascript = { path = "../rspack_plugin_javascript" }
 rspack_testing           = { path = "../rspack_testing" }
 rspack_tracing           = { path = "../rspack_tracing" }

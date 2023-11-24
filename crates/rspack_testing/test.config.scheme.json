@@ -165,6 +165,14 @@
         "asyncWebAssembly": {
           "default": true,
           "type": "boolean"
+        },
+        "rspackFuture": {
+          "type": "object",
+          "properties": {
+            "newResolver": {
+              "type": "boolean"
+            }
+          }
         }
       },
       "additionalProperties": false
@@ -441,6 +449,10 @@
         "chunkIds": {
           "default": "named",
           "type": "string"
+        },
+        "innerGraph": {
+          "default": true,
+          "type": "boolean"
         },
         "moduleIds": {
           "default": "named",

@@ -136,6 +136,7 @@ impl Stats<'_> {
     nested_modules: bool,
     source: bool,
   ) -> Result<Vec<StatsModule>> {
+    dbg!(&self.compilation.module_graph);
     let mut modules: Vec<StatsModule> = self
       .compilation
       .module_graph

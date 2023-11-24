@@ -1,12 +1,14 @@
-use std::path::PathBuf;
 use std::sync::atomic::Ordering;
+use std::{collections::HashSet, path::PathBuf};
 
 use cargo_rst::git_diff;
-use rspack_core::{BoxPlugin, CompilerOptions, TreeShaking, UsedExportsOption, IS_NEW_TREESHAKING};
+use rspack_core::{
+  BoxPlugin, Compiler, CompilerOptions, Module, TreeShaking, UsedExportsOption, IS_NEW_TREESHAKING,
+};
 use rspack_plugin_javascript::{
   FlagDependencyExportsPlugin, FlagDependencyUsagePlugin, SideEffectsFlagPlugin,
 };
-use rspack_testing::test_fixture;
+use rspack_testing::{apply_from_fixture, async_trait, test_fixture};
 use testing_macros::fixture;
 
 #[fixture("tests/fixtures/*")]
@@ -20,6 +22,61 @@ fn samples(fixture_path: PathBuf) {
     fixture_path.parent().expect("should exist"),
     Box::new(|_, _| {}),
     None,
+  );
+}
+
+#[tokio::main]
+#[fixture("tests/resolver")]
+async fn resolver(fixture_path: PathBuf) {
+  use std::path::PathBuf;
+  use std::sync::{Arc, Mutex};
+
+  use rspack_core::{Plugin, PluginExt};
+  use rspack_error::Result;
+  use rspack_fs::AsyncNativeFileSystem;
+  use rspack_plugin_entry::EntryPlugin;
+
+  let (options, mut plugins) = apply_from_fixture(&fixture_path);
+  let context = options.context.clone();
+  let file_a = PathBuf::from(context.as_str()).join("src/files/a.js");
+  #[derive(Debug, Default)]
+  struct ResolverReporter {
+    identifiers: Arc<Mutex<HashSet<String>>>,
+  }
+  #[async_trait::async_trait]
+  impl Plugin for ResolverReporter {
+    async fn succeed_module(&self, module: &dyn Module) -> Result<()> {
+      let i = module.identifier();
+      dbg!(module);
+      if i.contains("a.js") {
+        self.identifiers.lock().unwrap().insert(i.to_string());
+      }
+      Ok(())
+    }
+  }
+  let reporter = ResolverReporter::default();
+  let identifiers = reporter.identifiers.clone();
+  plugins.push(
+    EntryPlugin::new(
+      options.context.clone(),
+      "./src/index.js".into(),
+      Default::default(),
+    )
+    .boxed(),
+  );
+  plugins.push(reporter.boxed());
+  let mut compiler = Compiler::new(options, plugins, AsyncNativeFileSystem);
+  compiler.build().await.unwrap();
+  compiler
+    .rebuild(
+      HashSet::from_iter(vec![file_a.to_string_lossy().to_string()]),
+      Default::default(),
+    )
+    .await
+    .unwrap();
+  assert!(
+    identifiers.lock().unwrap().len() == 1,
+    "Should only contains one a.js"
   );
 }
 

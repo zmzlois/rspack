@@ -27,6 +27,12 @@ config.context ??= "{test_dir}";
 config.output ??= {{}};
 config.output.path ??= "{test_dir}/dist";
 const normalized = rspack.getNormalizedRspackOptions(config);
+// TODO: remove until builtins are removed.
+let builtins = normalized.builtins;
+builtins.treeShaking ??= "false";
+builtins.react ??= {{}};
+builtins.noEmitAssets ??= false;
+builtins.devFriendlySplitChunks ??= false;
 rspack.applyRspackOptionsDefaults(normalized);
 const raw = rspack.getRawOptions(normalized);
 JSON.stringify(raw, null, 2)
