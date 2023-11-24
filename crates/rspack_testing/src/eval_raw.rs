@@ -16,25 +16,36 @@ pub fn evaluate_to_json(config_path: &Path) -> Vec<u8> {
 fn get_evaluate_code(config_path: &Path) -> String {
   let workspace_dir = PathBuf::from(env!("CARGO_WORKSPACE_DIR"));
   let rspack_path = workspace_dir.join("packages").join("rspack");
-  let rspack_path = rspack_path.to_string_lossy();
-  let test_dir = config_path.parent().expect("TODO:").to_string_lossy();
-  let config_path = config_path.to_string_lossy();
+  fn strip_long(s: impl Into<String>) -> String {
+    let s = s.into();
+    if let Some(s) = s.strip_prefix("\\\\?\\") {
+      return s.to_string();
+    }
+    s
+  }
+  let rspack_path = strip_long(rspack_path.to_string_lossy());
+  let test_dir = strip_long(config_path.parent().expect("TODO:").to_string_lossy());
+  let config_path = strip_long(config_path.to_string_lossy());
   format!(
     r#"
-const rspack = require("{rspack_path}");
-const config = require("{config_path}");
-config.context ??= "{test_dir}";
+const path = require("path");
+let rspackPath = {rspack_path:?};
+let configPath = {config_path:?};
+let testDir = {test_dir:?};
+const rspack = require(rspackPath);
+const config = require(configPath);
+config.context ??= testDir;
 config.output ??= {{}};
-config.output.path ??= "{test_dir}/dist";
-const normalized = rspack.getNormalizedRspackOptions(config);
+config.output.path ??= path.join(testDir, "dist");
+const normalized = rspack.config.getNormalizedRspackOptions(config);
 // TODO: remove until builtins are removed.
 let builtins = normalized.builtins;
 builtins.treeShaking ??= "false";
 builtins.react ??= {{}};
 builtins.noEmitAssets ??= false;
 builtins.devFriendlySplitChunks ??= false;
-rspack.applyRspackOptionsDefaults(normalized);
-const raw = rspack.getRawOptions(normalized);
+rspack.config.applyRspackOptionsDefaults(normalized);
+const raw = rspack.config.__do_not_use_getRawOptions(normalized);
 JSON.stringify(raw, null, 2)
 "#
   )

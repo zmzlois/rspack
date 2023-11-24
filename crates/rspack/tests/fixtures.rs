@@ -1,3 +1,4 @@
+use std::fs;
 use std::sync::atomic::Ordering;
 use std::{collections::HashSet, path::PathBuf};
 
@@ -47,8 +48,8 @@ async fn resolver(fixture_path: PathBuf) {
   impl Plugin for ResolverReporter {
     async fn succeed_module(&self, module: &dyn Module) -> Result<()> {
       let i = module.identifier();
-      dbg!(module);
       if i.contains("a.js") {
+        dbg!(&i);
         self.identifiers.lock().unwrap().insert(i.to_string());
       }
       Ok(())
@@ -67,6 +68,7 @@ async fn resolver(fixture_path: PathBuf) {
   plugins.push(reporter.boxed());
   let mut compiler = Compiler::new(options, plugins, AsyncNativeFileSystem);
   compiler.build().await.unwrap();
+  fs::write(file_a.clone(), br#";module.exports += "a""#).unwrap();
   compiler
     .rebuild(
       HashSet::from_iter(vec![file_a.to_string_lossy().to_string()]),

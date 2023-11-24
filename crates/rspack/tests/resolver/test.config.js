@@ -16,8 +16,9 @@ module.exports = {
 		}
 	},
 	experiments: {
+		incrementalRebuild: true,
 		rspackFuture: {
-			newResolve: false
+			newResolver: false
 		}
 	}
 }
