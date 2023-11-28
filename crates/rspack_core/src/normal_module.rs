@@ -336,6 +336,7 @@ impl Module for NormalModule {
     &mut self,
     build_context: BuildContext<'_>,
   ) -> Result<TWithDiagnosticArray<BuildResult>> {
+    panic!("failed to build");
     let mut build_info = BuildInfo::default();
     let mut build_meta = BuildMeta::default();
     let mut diagnostics = Vec::new();
