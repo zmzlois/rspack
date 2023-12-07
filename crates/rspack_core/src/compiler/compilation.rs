@@ -173,6 +173,11 @@ impl Compilation {
     }
   }
 
+  fn assign_runtime_ids(&mut self) {
+    // let chunk_graph = &mut self.chunk_graph;
+    let mut runtime_pairs = vec![];
+    for v in self.get_chunk_graph_entries() {}
+  }
   pub fn get_entry_runtime(&self, name: &String, options: Option<&EntryOptions>) -> RuntimeSpec {
     let (_, runtime) = if let Some(options) = options {
       ((), options.runtime.as_ref())

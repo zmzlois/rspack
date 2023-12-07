@@ -47,6 +47,7 @@ impl Dependency for PureExpressionDependency {
 }
 
 impl AsModuleDependency for PureExpressionDependency {}
+
 impl DependencyTemplate for PureExpressionDependency {
   fn apply(&self, source: &mut TemplateReplaceSource, ctx: &mut TemplateContext) {
     match self.used_by_exports {

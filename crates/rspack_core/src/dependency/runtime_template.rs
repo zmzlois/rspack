@@ -1,10 +1,11 @@
+use rustc_hash::FxHashSet;
 use swc_core::ecma::atoms::JsWord;
 
 use crate::{
-  get_import_var, property_access, to_comment, AsyncDependenciesBlockIdentifier, Compilation,
-  DependenciesBlock, DependencyId, ExportsType, FakeNamespaceObjectMode, InitFragmentExt,
-  InitFragmentKey, InitFragmentStage, ModuleGraph, ModuleIdentifier, NormalInitFragment,
-  RuntimeGlobals, TemplateContext,
+  for_each_runtime, get_import_var, property_access, to_comment, AsyncDependenciesBlockIdentifier,
+  ChunkGraph, Compilation, DependenciesBlock, DependencyId, ExportsType, FakeNamespaceObjectMode,
+  InitFragmentExt, InitFragmentKey, InitFragmentStage, ModuleGraph, ModuleIdentifier,
+  NormalInitFragment, RuntimeCondition, RuntimeGlobals, RuntimeSpec, TemplateContext,
 };
 
 pub fn export_from_import(
@@ -382,6 +383,28 @@ pub fn throw_missing_module_error_block(request: &str) -> String {
 
 fn weak_error(request: &str) -> String {
   format!("var e = new Error('Module is not available (weak dependency), request is {request}'); e.code = 'MODULE_NOT_FOUND'; throw e;")
+}
+
+fn runtime_condition_expression(
+  chunk_graph: &ChunkGraph,
+  runtime_condition: Option<&RuntimeCondition>,
+  runtime: Option<&RuntimeSpec>,
+  runtime_requirements: &mut RuntimeGlobals,
+) -> String {
+  let spec = match runtime_condition {
+    Some(RuntimeCondition::Boolean(v)) => return v.to_string(),
+    Some(RuntimeCondition::Spec(spec)) => spec,
+    None => return "true".to_string(),
+  };
+  // let mut positive_runtime_ids = FxHashSet::default();
+  for_each_runtime(
+    runtime,
+    |r| {
+      // chunk_graph.get_runtime_ids();
+    },
+    None,
+  );
+  todo!()
 }
 
 pub fn returning_function(return_value: &str, args: &str) -> String {

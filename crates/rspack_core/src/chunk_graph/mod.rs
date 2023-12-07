@@ -19,4 +19,20 @@ pub struct ChunkGraph {
 
   pub chunk_graph_module_by_module_identifier: IdentifierMap<ChunkGraphModule>,
   chunk_graph_chunk_by_chunk_ukey: HashMap<ChunkUkey, ChunkGraphChunk>,
+
+  pub runtime_ids: HashMap<String, String>,
+}
+
+impl ChunkGraph {
+  /// #Panic would panic if the runtime is not exists
+  fn get_runtime_id(&self, runtime: &str) -> &String {
+    self
+      .runtime_ids
+      .get(runtime)
+      .expect("should have runtime id")
+  }
+  /// #Panic would panic if the runtime is not exists
+  fn set_runtime_id(&mut self, runtime: &str, id: &str) {
+    self.runtime_ids.insert(runtime.to_string(), id.to_string());
+  }
 }

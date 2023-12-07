@@ -78,6 +78,30 @@ pub fn filter_runtime(
   }
 }
 
+pub fn for_each_runtime(
+  runtime: Option<&RuntimeSpec>,
+  cb: impl Fn(Option<&Arc<str>>),
+  deterministic_order: Option<bool>,
+) {
+  let deterministic_order = deterministic_order.unwrap_or(false);
+  match runtime {
+    None => cb(None),
+    Some(runtime) => {
+      if deterministic_order {
+        let mut vec = runtime.iter().collect::<Vec<_>>();
+        vec.sort();
+        for r in vec {
+          cb(Some(r));
+        }
+        return;
+      };
+
+      for r in runtime {
+        cb(Some(r));
+      }
+    }
+  }
+}
 pub fn get_runtime_key(runtime: RuntimeSpec) -> String {
   let mut runtime: Vec<Arc<str>> = Vec::from_iter(runtime);
   runtime.sort_unstable();
