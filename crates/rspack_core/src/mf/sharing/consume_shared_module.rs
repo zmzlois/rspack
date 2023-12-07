@@ -11,6 +11,7 @@ use super::{
   consume_shared_plugin::ConsumeOptions,
   consume_shared_runtime_module::CodeGenerationDataConsumeShared,
 };
+use crate::build_chunk_graph::DependenciesBlockIdentifier;
 use crate::{
   async_module_factory, sync_module_factory, AsyncDependenciesBlock,
   AsyncDependenciesBlockIdentifier, BoxDependency, BuildContext, BuildInfo, BuildResult,
@@ -142,7 +143,11 @@ impl Module for ConsumeSharedModule {
       if self.options.eager {
         dependencies.push(dep as BoxDependency);
       } else {
-        let mut block = AsyncDependenciesBlock::new(self.identifier, "", None);
+        let mut block = AsyncDependenciesBlock::new(
+          DependenciesBlockIdentifier::Module(self.identifier),
+          "",
+          None,
+        );
         block.add_dependency(dep);
         blocks.push(block);
       }

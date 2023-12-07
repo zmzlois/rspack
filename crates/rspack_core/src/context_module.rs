@@ -19,13 +19,13 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-  contextify, get_exports_type_with_strict, stringify_map, to_path, AsyncDependenciesBlock,
-  AsyncDependenciesBlockIdentifier, BoxDependency, BuildContext, BuildInfo, BuildMeta, BuildResult,
-  ChunkGraph, ChunkGroupOptions, CodeGenerationResult, Compilation, ContextElementDependency,
-  DependenciesBlock, DependencyCategory, DependencyId, DependencyType, ExportsType,
-  FakeNamespaceObjectMode, GroupOptions, LibIdentOptions, Module, ModuleType, Resolve,
-  ResolveInnerOptions, ResolveOptionsWithDependencyType, ResolverFactory, RuntimeGlobals,
-  RuntimeSpec, SourceType,
+  build_chunk_graph::DependenciesBlockIdentifier, contextify, get_exports_type_with_strict,
+  stringify_map, to_path, AsyncDependenciesBlock, AsyncDependenciesBlockIdentifier, BoxDependency,
+  BuildContext, BuildInfo, BuildMeta, BuildResult, ChunkGraph, ChunkGroupOptions,
+  CodeGenerationResult, Compilation, ContextElementDependency, DependenciesBlock,
+  DependencyCategory, DependencyId, DependencyType, ExportsType, FakeNamespaceObjectMode,
+  GroupOptions, LibIdentOptions, Module, ModuleType, Resolve, ResolveInnerOptions,
+  ResolveOptionsWithDependencyType, ResolverFactory, RuntimeGlobals, RuntimeSpec, SourceType,
 };
 
 #[derive(Debug, Clone)]
@@ -783,7 +783,11 @@ impl ContextModule {
       && !context_element_dependencies.is_empty()
     {
       let name = self.options.context_options.chunk_name.clone();
-      let mut block = AsyncDependenciesBlock::new(self.identifier, "", None);
+      let mut block = AsyncDependenciesBlock::new(
+        DependenciesBlockIdentifier::Module(self.identifier),
+        "",
+        None,
+      );
       block.set_group_options(GroupOptions::ChunkGroup(ChunkGroupOptions { name }));
       for context_element_dependency in context_element_dependencies {
         block.add_dependency(Box::new(context_element_dependency));
@@ -812,7 +816,7 @@ impl ContextModule {
             name.into_owned()
           });
         let mut block = AsyncDependenciesBlock::new(
-          self.identifier,
+          DependenciesBlockIdentifier::Module(self.identifier),
           &context_element_dependency.user_request,
           None,
         );

@@ -930,8 +930,8 @@ struct ProcessEntryBlock {
   chunk: ChunkUkey,
 }
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-enum DependenciesBlockIdentifier {
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+pub enum DependenciesBlockIdentifier {
   Module(ModuleIdentifier),
   AsyncDependenciesBlock(AsyncDependenciesBlockIdentifier),
 }
@@ -940,9 +940,11 @@ impl DependenciesBlockIdentifier {
   pub fn as_module(&self) -> Option<&ModuleIdentifier> {
     match self {
       DependenciesBlockIdentifier::Module(m) => Some(m),
-      DependenciesBlockIdentifier::AsyncDependenciesBlock(ident) => Some(&ident.from),
+      DependenciesBlockIdentifier::AsyncDependenciesBlock(_) => None,
     }
   }
+
+  pub fn get_root_block(&self, compilation: &Compilation) {}
 }
 
 impl From<ModuleIdentifier> for DependenciesBlockIdentifier {

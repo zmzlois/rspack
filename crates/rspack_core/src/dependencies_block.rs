@@ -2,6 +2,7 @@ use rspack_error::{Diagnostic, DIAGNOSTIC_POS_DUMMY};
 use serde::Serialize;
 use ustr::Ustr;
 
+use crate::build_chunk_graph::DependenciesBlockIdentifier;
 use crate::{BoxDependency, Compilation, DependencyId, GroupOptions, ModuleIdentifier};
 
 pub trait DependenciesBlock {
@@ -14,15 +15,18 @@ pub trait DependenciesBlock {
   fn get_dependencies(&self) -> &[DependencyId];
 }
 
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
+#[derive(Debug, Default, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize)]
 pub struct AsyncDependenciesBlockIdentifier {
-  pub from: ModuleIdentifier,
+  pub from: Box<DependenciesBlockIdentifier>,
   modifier: Ustr,
 }
 
 impl AsyncDependenciesBlockIdentifier {
-  pub fn new(from: ModuleIdentifier, modifier: Ustr) -> Self {
-    Self { from, modifier }
+  pub fn new(from: DependenciesBlockIdentifier, modifier: Ustr) -> Self {
+    Self {
+      from: Box::new(DependenciesBlockIdentifier),
+      modifier,
+    }
   }
 
   pub fn get<'a>(&self, compilation: &'a Compilation) -> Option<&'a AsyncDependenciesBlock> {
@@ -73,7 +77,7 @@ pub struct AsyncDependenciesBlock {
 impl AsyncDependenciesBlock {
   /// modifier should be Dependency.span in most of time
   pub fn new(
-    from: ModuleIdentifier,
+    from: DependenciesBlockIdentifier,
     modifier: impl AsRef<str>,
     loc: Option<DependencyLocation>,
   ) -> Self {

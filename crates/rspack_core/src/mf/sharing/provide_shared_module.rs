@@ -14,10 +14,10 @@ use super::{
   },
 };
 use crate::{
-  async_module_factory, sync_module_factory, AsyncDependenciesBlock,
-  AsyncDependenciesBlockIdentifier, BoxDependency, BuildContext, BuildInfo, BuildResult,
-  CodeGenerationResult, Compilation, Context, DependenciesBlock, DependencyId, LibIdentOptions,
-  Module, ModuleIdentifier, ModuleType, RuntimeGlobals, RuntimeSpec, SourceType,
+  async_module_factory, build_chunk_graph::DependenciesBlockIdentifier, sync_module_factory,
+  AsyncDependenciesBlock, AsyncDependenciesBlockIdentifier, BoxDependency, BuildContext, BuildInfo,
+  BuildResult, CodeGenerationResult, Compilation, Context, DependenciesBlock, DependencyId,
+  LibIdentOptions, Module, ModuleIdentifier, ModuleType, RuntimeGlobals, RuntimeSpec, SourceType,
 };
 
 #[derive(Debug)]
@@ -125,7 +125,11 @@ impl Module for ProvideSharedModule {
     if self.eager {
       dependencies.push(dep as BoxDependency);
     } else {
-      let mut block = AsyncDependenciesBlock::new(self.identifier, "", None);
+      let mut block = AsyncDependenciesBlock::new(
+        DependenciesBlockIdentifier::Module(self.identifier),
+        "",
+        None,
+      );
       block.add_dependency(dep);
       blocks.push(block);
     }

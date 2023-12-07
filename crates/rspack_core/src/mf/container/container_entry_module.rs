@@ -9,6 +9,7 @@ use rspack_sources::{RawSource, Source, SourceExt};
 use super::{
   container_exposed_dependency::ContainerExposedDependency, container_plugin::ExposeOptions,
 };
+use crate::build_chunk_graph::DependenciesBlockIdentifier;
 use crate::{
   basic_function, block_promise, module_raw, returning_function, throw_missing_module_error_block,
   AsyncDependenciesBlock, AsyncDependenciesBlockIdentifier, BuildContext, BuildInfo, BuildMeta,
@@ -105,7 +106,11 @@ impl Module for ContainerEntryModule {
 
     let mut blocks = vec![];
     for (name, options) in &self.exposes {
-      let mut block = AsyncDependenciesBlock::new(self.identifier, name, None);
+      let mut block = AsyncDependenciesBlock::new(
+        DependenciesBlockIdentifier::Module(self.identifier),
+        name,
+        None,
+      );
       block.set_group_options(GroupOptions::ChunkGroup(ChunkGroupOptions {
         name: options.name.clone(),
       }));
