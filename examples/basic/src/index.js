@@ -1,7 +1,9 @@
-import { answer } from "./answer";
-function render() {
-	document.getElementById(
-		"root"
-	).innerHTML = `the answer to the universe is ${answer}`;
-}
-render();
+// import { version } from "./answer";
+// version;
+(async () => {
+	// const { version } = await import("./answer");
+	// version;
+	import("./answer").then(res => {
+		res.version;
+	});
+})();

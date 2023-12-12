@@ -192,6 +192,7 @@ impl DependencyTemplate for HarmonyImportSpecifierDependency {
       self.call,
       !self.direct_import,
     );
+    dbg!(&export_expr);
     if self.shorthand {
       source.insert(self.end, format!(": {export_expr}").as_str(), None);
     } else {

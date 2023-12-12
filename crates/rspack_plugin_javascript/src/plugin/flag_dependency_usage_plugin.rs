@@ -2,10 +2,11 @@ use std::collections::hash_map::Entry;
 use std::collections::VecDeque;
 
 use rspack_core::{
-  is_exports_object_referenced, is_no_exports_referenced, merge_runtime,
-  AsyncDependenciesBlockIdentifier, BuildMetaExportsType, Compilation, ConnectionState,
-  DependenciesBlock, DependencyId, ExportsInfoId, ExtendedReferencedExport, GroupOptions,
-  ModuleIdentifier, Plugin, ReferencedExport, RuntimeSpec, UsageState, UsedExportsOption,
+  create_exports_object_referenced, is_exports_object_referenced, is_no_exports_referenced,
+  merge_runtime, AsyncDependenciesBlockIdentifier, BuildMetaExportsType, Compilation,
+  ConnectionState, DependenciesBlock, DependencyId, ExportsInfoId, ExtendedReferencedExport,
+  GroupOptions, ModuleIdentifier, Plugin, ReferencedExport, RuntimeSpec, UsageState,
+  UsedExportsOption,
 };
 use rspack_error::Result;
 use rspack_identifier::IdentifierMap;
@@ -204,16 +205,16 @@ impl<'a> FlagDependencyUsagePluginProxy<'a> {
         let referenced_exports = if let Some(md) = dep.as_module_dependency() {
           md.get_referenced_exports(&self.compilation.module_graph, runtime.as_ref())
         } else if dep.as_context_dependency().is_some() {
-          vec![ExtendedReferencedExport::Array(vec![])]
+          create_exports_object_referenced()
         } else {
           continue;
         };
-        // dbg!(
-        //   &connection,
-        //   dep.dependency_debug_name(),
-        //   &referenced_exports,
-        //   &old_referenced_exports
-        // );
+        dbg!(
+          &connection,
+          dep.dependency_debug_name(),
+          &referenced_exports,
+          &old_referenced_exports
+        );
 
         if old_referenced_exports.is_none()
           || matches!(old_referenced_exports, Some(ProcessModuleReferencedExports::ExtendRef(ref v)) if is_no_exports_referenced(v))

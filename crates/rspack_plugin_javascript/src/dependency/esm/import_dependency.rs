@@ -85,20 +85,17 @@ impl DependencyTemplate for ImportDependency {
       .compilation
       .module_graph
       .get_parent_block(&self.id);
-    source.replace(
-      self.start,
-      self.end,
-      module_namespace_promise(
-        code_generatable_context,
-        &self.id,
-        block,
-        &self.request,
-        self.dependency_type().as_str().as_ref(),
-        false,
-      )
-      .as_str(),
-      None,
+    let res = module_namespace_promise(
+      code_generatable_context,
+      &self.id,
+      block,
+      &self.request,
+      self.dependency_type().as_str().as_ref(),
+      false,
     );
+    let binding = res.as_str();
+    dbg!(&binding);
+    source.replace(self.start, self.end, binding, None);
   }
 }
 
