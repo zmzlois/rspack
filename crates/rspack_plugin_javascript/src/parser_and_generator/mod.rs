@@ -239,11 +239,11 @@ impl ParserAndGenerator for JavaScriptParserAndGenerator {
             &mut rewrite_usage_span,
             &import_map,
             module_identifier,
-            program.comments.take(),
+            program.comments.clone(),
           );
           plugin.enable();
           program.visit_with(&mut plugin);
-          program.comments = plugin.comments.take();
+          // program.comments = plugin.comments.take();
           Some(plugin)
         })
       } else {
