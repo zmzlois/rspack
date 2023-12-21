@@ -15,3 +15,6 @@ pub struct CompilerContext {
 pub type LoaderRunnerContext = CompilerContext;
 
 pub type BoxLoader = Arc<dyn Loader<LoaderRunnerContext>>;
+
+#[derive(Debug, Clone)]
+pub struct AdditionalDataFromJs(pub String);

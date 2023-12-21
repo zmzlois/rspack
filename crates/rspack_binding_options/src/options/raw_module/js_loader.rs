@@ -4,7 +4,7 @@ use std::{
 };
 
 use napi_derive::napi;
-use rspack_core::{rspack_sources::SourceMap, Content, ResourceData};
+use rspack_core::{rspack_sources::SourceMap, AdditionalDataFromJs, Content, ResourceData};
 use rspack_error::Diagnostic;
 use rspack_loader_runner::AdditionalData;
 use rspack_napi_shared::get_napi_env;
@@ -209,11 +209,13 @@ fn sync_loader_context(
     .map_err(|e| internal_error!(e.to_string()))?;
   loader_context.additional_data = loader_result.additional_data_external.clone();
   if let Some(data) = loader_result.additional_data {
+    loader_context.additional_data.insert(AdditionalDataFromJs(
+      String::from_utf8_lossy(&data).to_string(),
+    ));
+  } else {
     loader_context
       .additional_data
-      .insert(String::from_utf8_lossy(&data).to_string());
-  } else {
-    loader_context.additional_data.remove::<String>();
+      .remove::<AdditionalDataFromJs>();
   }
 
   Ok(())
