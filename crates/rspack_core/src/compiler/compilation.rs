@@ -795,7 +795,7 @@ impl Compilation {
                 }
               }
 
-              if self.options.builtins.tree_shaking.enable() {
+              if !self.options.is_new_tree_shaking() && self.options.optimization.provided_exports {
                 self
                   .optimize_analyze_result_map
                   .insert(module.identifier(), build_result.analyze_result);
