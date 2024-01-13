@@ -68,7 +68,7 @@ impl<'a, 'b> Visit for HarmonyExportDependencyScanner<'a, 'b> {
 
   fn visit_export_decl(&mut self, export_decl: &'_ ExportDecl) {
     match &export_decl.decl {
-      Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
+      Decl::Class(ClassDecl { ident, class, .. }) => {
         self
           .dependencies
           .push(Box::new(HarmonyExportSpecifierDependency::new(
@@ -77,7 +77,26 @@ impl<'a, 'b> Visit for HarmonyExportDependencyScanner<'a, 'b> {
           )));
 
         self.rewrite_usage_span.insert(
-          export_decl.span(),
+          class.span(),
+          ExtraSpanInfo::AddVariableUsage(vec![(ident.sym.clone(), ident.sym.clone())]),
+        );
+        self
+          .build_info
+          .harmony_named_exports
+          .insert(ident.sym.clone());
+      }
+      Decl::Fn(FnDecl {
+        ident, function, ..
+      }) => {
+        self
+          .dependencies
+          .push(Box::new(HarmonyExportSpecifierDependency::new(
+            ident.sym.clone(),
+            ident.sym.clone(),
+          )));
+
+        self.rewrite_usage_span.insert(
+          function.span(),
           ExtraSpanInfo::AddVariableUsage(vec![(ident.sym.clone(), ident.sym.clone())]),
         );
         self
@@ -86,7 +105,6 @@ impl<'a, 'b> Visit for HarmonyExportDependencyScanner<'a, 'b> {
           .insert(ident.sym.clone());
       }
       Decl::Var(v) => {
-        let mut usages = vec![];
         find_pat_ids::<_, Ident>(&v.decls)
           .into_iter()
           .for_each(|ident| {
@@ -97,13 +115,12 @@ impl<'a, 'b> Visit for HarmonyExportDependencyScanner<'a, 'b> {
                 ident.sym.clone(),
               )));
 
-            usages.push((ident.sym.clone(), ident.sym.clone()));
+            self.rewrite_usage_span.insert(
+              ident.span(),
+              ExtraSpanInfo::AddVariableUsage(vec![(ident.sym.clone(), ident.sym.clone())]),
+            );
             self.build_info.harmony_named_exports.insert(ident.sym);
           });
-
-        self
-          .rewrite_usage_span
-          .insert(export_decl.span(), ExtraSpanInfo::AddVariableUsage(usages));
       }
       _ => {}
     }

@@ -234,6 +234,7 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
 
   fn visit_fn_decl(&mut self, node: &FnDecl) {
     self.set_symbol_if_is_top_level(node.ident.sym.clone());
+    self.rewrite_span(&node.function.span);
     node.function.visit_with(self);
     self.clear_symbol_if_is_top_level();
   }
@@ -264,6 +265,8 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
     if is_pure_class {
       self.set_symbol_if_is_top_level(node.ident.sym.clone());
     }
+
+    self.rewrite_span(&node.class.span);
     let is_toplevel = self.is_toplevel();
     let scope_level = self.scope_level;
     self.scope_level += 1;
@@ -328,7 +331,9 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
       let symbol = ident.id.sym.clone();
       match init {
         Expr::Fn(_) | Expr::Arrow(_) | Expr::Lit(_) => {
+          // dbg!(&symbol);
           self.set_symbol_if_is_top_level(symbol);
+          self.rewrite_span(&ident.span);
           init.visit_children_with(self);
           self.clear_symbol_if_is_top_level();
         }
@@ -337,6 +342,7 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
           if is_pure {
             self.set_symbol_if_is_top_level(symbol);
           }
+          self.rewrite_span(&ident.span);
           class.visit_with(self);
           self.clear_symbol_if_is_top_level();
         }
@@ -344,6 +350,8 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
           init.visit_children_with(self);
           if is_pure_expression(init, self.unresolved_ctxt, self.comments.as_ref()) {
             self.set_symbol_if_is_top_level(symbol);
+
+            self.rewrite_span(&ident.span);
             let start = init.span().real_lo();
             let end = init.span().real_hi();
             let module_identifier = self.state.module_identifier;
@@ -362,6 +370,7 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
         }
       }
     } else {
+      self.rewrite_span(&n.span);
       n.init.visit_with(self);
     }
   }
@@ -384,15 +393,6 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
   }
 
   fn visit_export_decl(&mut self, export_decl: &ExportDecl) {
-    let rewrite_usage_span = std::mem::take(self.rewrite_usage_span);
-    if let Some(ExtraSpanInfo::AddVariableUsage(usages)) = rewrite_usage_span.get(&export_decl.span)
-    {
-      for (sym, usage) in usages {
-        self.add_variable_usage(sym.clone(), InnerGraphMapUsage::Value(usage.clone()));
-      }
-    }
-    *self.rewrite_usage_span = rewrite_usage_span;
-
     export_decl.visit_children_with(self);
   }
 
@@ -400,35 +400,30 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
     if !self.is_enabled() {
       return;
     }
-    let rewrite_usage_span = std::mem::take(self.rewrite_usage_span);
-    if named_export.src.is_none() {
-      if let Some(ExtraSpanInfo::AddVariableUsage(usages)) =
-        rewrite_usage_span.get(&named_export.span)
-      {
-        for (sym, usage) in usages {
-          self.add_variable_usage(sym.clone(), InnerGraphMapUsage::Value(usage.clone()));
+    self.rewrite_span(&named_export.span);
+    for item in named_export.specifiers.iter() {
+      match item {
+        swc_core::ecma::ast::ExportSpecifier::Namespace(n) => {
+          n.visit_with(self);
+        }
+        swc_core::ecma::ast::ExportSpecifier::Default(d) => {
+          d.visit_with(self);
+        }
+        swc_core::ecma::ast::ExportSpecifier::Named(named) => {
+          named.visit_with(self);
         }
       }
     }
-    *self.rewrite_usage_span = rewrite_usage_span;
-    named_export.visit_children_with(self);
   }
   fn visit_export_default_expr(&mut self, node: &ExportDefaultExpr) {
     if !self.is_enabled() {
       return;
     }
-    let rewrite_usage_span = std::mem::take(self.rewrite_usage_span);
-    if let Some(ExtraSpanInfo::AddVariableUsage(usages)) = rewrite_usage_span.get(&node.span) {
-      for (sym, usage) in usages {
-        self.add_variable_usage(sym.clone(), InnerGraphMapUsage::Value(usage.clone()));
-      }
-    }
-    *self.rewrite_usage_span = rewrite_usage_span;
-
     let expr = node.expr.unwrap_parens();
     match expr {
       Expr::Fn(_) | Expr::Arrow(_) | Expr::Lit(_) => {
         self.set_symbol_if_is_top_level(DEFAULT_EXPORT.into());
+        self.rewrite_span(&node.span);
         expr.visit_children_with(self);
         self.clear_symbol_if_is_top_level();
       }
@@ -437,6 +432,8 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
         if is_pure {
           self.set_symbol_if_is_top_level(DEFAULT_EXPORT.into());
         }
+
+        self.rewrite_span(&node.span);
         class.visit_with(self);
         self.clear_symbol_if_is_top_level();
       }
@@ -457,9 +454,11 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
             },
           ));
 
+          self.rewrite_span(&node.span);
           expr.visit_children_with(self);
           self.clear_symbol_if_is_top_level();
         } else {
+          self.rewrite_span(&node.span);
           expr.visit_children_with(self);
         }
       }
@@ -471,14 +470,6 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
       return;
     }
 
-    let rewrite_usage_span = std::mem::take(self.rewrite_usage_span);
-    if let Some(ExtraSpanInfo::AddVariableUsage(usages)) = rewrite_usage_span.get(&node.span) {
-      for (sym, usage) in usages {
-        self.add_variable_usage(sym.clone(), InnerGraphMapUsage::Value(usage.clone()));
-      }
-    }
-    *self.rewrite_usage_span = rewrite_usage_span;
-
     let ident = match &node.decl {
       DefaultDecl::Class(class) => class.ident.as_ref().map(|item| item.sym.clone()),
       DefaultDecl::Fn(func) => func.ident.as_ref().map(|item| item.sym.clone()),
@@ -487,6 +478,7 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
     .unwrap_or(DEFAULT_EXPORT.into());
 
     self.set_symbol_if_is_top_level(ident);
+    self.rewrite_span(&node.span);
     match &node.decl {
       DefaultDecl::Class(class) => {
         let is_pure = is_pure_class(&class.class, self.unresolved_ctxt, self.comments.as_ref());
@@ -528,6 +520,19 @@ impl<'a> InnerGraphPlugin<'a> {
       import_map,
       comments,
     }
+  }
+
+  fn rewrite_span(&mut self, span: &Span) {
+    if self.rewrite_usage_span.get(span).is_none() {
+      return;
+    }
+    let rewrite_usage_span = std::mem::take(self.rewrite_usage_span);
+    if let Some(ExtraSpanInfo::AddVariableUsage(usages)) = rewrite_usage_span.get(span) {
+      for (sym, usage) in usages {
+        self.add_variable_usage(sym.clone(), InnerGraphMapUsage::Value(usage.clone()));
+      }
+    }
+    *self.rewrite_usage_span = rewrite_usage_span;
   }
 
   pub fn enable(&mut self) {
@@ -587,7 +592,10 @@ impl<'a> InnerGraphPlugin<'a> {
   }
 
   pub fn add_variable_usage(&mut self, name: JsWord, usage: InnerGraphMapUsage) {
-    self.add_usage(name, usage);
+    // dbg!(&name, &usage);
+    if let Some(symbol) = self.get_top_level_symbol() {
+      self.add_usage(name, usage);
+    }
   }
 
   pub fn on_usage(&mut self, on_usage_callback: UsageCallback) {
