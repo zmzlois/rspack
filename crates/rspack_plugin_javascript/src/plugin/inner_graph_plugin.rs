@@ -1,5 +1,6 @@
 use std::{collections::hash_map::Entry, hash::Hash};
 
+use bitflags::bitflags;
 use rspack_core::{Dependency, ModuleIdentifier, SpanExt, UsedByExports};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use swc_core::{
@@ -76,6 +77,12 @@ pub struct InnerGraphState {
   module_identifier: ModuleIdentifier,
 }
 
+bitflags! {
+    pub struct Status: u32 {
+        const IS_NAMED_EXPORT = 1 << 0;
+    }
+}
+
 pub struct InnerGraphPlugin<'a> {
   dependencies: &'a mut Vec<Box<dyn Dependency>>,
   unresolved_ctxt: SyntaxContext,
@@ -85,6 +92,7 @@ pub struct InnerGraphPlugin<'a> {
   rewrite_usage_span: &'a mut HashMap<Span, ExtraSpanInfo>,
   import_map: &'a ImportMap,
   pub comments: Option<SwcComments>,
+  status: Status,
 }
 
 impl<'a> Visit for InnerGraphPlugin<'a> {
@@ -314,8 +322,13 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
       let usage = if let Some(symbol) = self.get_top_level_symbol() {
         InnerGraphMapUsage::TopLevel(symbol)
       } else {
+        if self.status.contains(Status::IS_NAMED_EXPORT) {
+          return;
+        }
         InnerGraphMapUsage::True
       };
+
+      // dbg!(&ident.sym, &usage);
       self.add_usage(ident.sym.clone(), usage);
     }
   }
@@ -401,19 +414,10 @@ impl<'a> Visit for InnerGraphPlugin<'a> {
       return;
     }
     self.rewrite_span(&named_export.span);
-    for item in named_export.specifiers.iter() {
-      match item {
-        swc_core::ecma::ast::ExportSpecifier::Namespace(n) => {
-          n.visit_with(self);
-        }
-        swc_core::ecma::ast::ExportSpecifier::Default(d) => {
-          d.visit_with(self);
-        }
-        swc_core::ecma::ast::ExportSpecifier::Named(named) => {
-          named.visit_with(self);
-        }
-      }
-    }
+    let status = self.status;
+    self.status.insert(Status::IS_NAMED_EXPORT);
+    named_export.visit_children_with(self);
+    self.status = status;
   }
   fn visit_export_default_expr(&mut self, node: &ExportDefaultExpr) {
     if !self.is_enabled() {
@@ -519,6 +523,7 @@ impl<'a> InnerGraphPlugin<'a> {
       rewrite_usage_span,
       import_map,
       comments,
+      status: Status::empty(),
     }
   }
 
@@ -592,10 +597,7 @@ impl<'a> InnerGraphPlugin<'a> {
   }
 
   pub fn add_variable_usage(&mut self, name: JsWord, usage: InnerGraphMapUsage) {
-    // dbg!(&name, &usage);
-    if let Some(symbol) = self.get_top_level_symbol() {
-      self.add_usage(name, usage);
-    }
+    self.add_usage(name, usage);
   }
 
   pub fn on_usage(&mut self, on_usage_callback: UsageCallback) {

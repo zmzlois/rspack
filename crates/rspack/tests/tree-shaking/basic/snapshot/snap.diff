@@ -1,20 +1,6 @@
 --- expected
 +++ actual
-@@ -3,20 +3,35 @@
- ---
- ```js title=main.js
- (self['webpackChunkwebpack'] = self['webpackChunkwebpack'] || []).push([["main"], {
-+"./answer.js": (function (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-+"use strict";
-+__webpack_require__.r(__webpack_exports__);
-+__webpack_require__.d(__webpack_exports__, {
-+  answer: function() { return answer; }
-+});
-+ const answer = 103330;
-+ const a = 100;
-+}),
- "./index.js": (function (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
- "use strict";
+@@ -8,15 +8,20 @@
  __webpack_require__.r(__webpack_exports__);
  /* harmony import */var _lib__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./lib */"./lib.js");
  
@@ -27,12 +13,11 @@
 +__webpack_require__.d(__webpack_exports__, {
 +  a: function() { return a; }
 +});
-+/* harmony import */var _answer__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./answer */"./answer.js");
  
 - function useModel() {
 -    /* "./answer" unused */null;
 +function useModel() {
-+    _answer__WEBPACK_IMPORTED_MODULE_0__.answer;
++    answer;
  }
 +const a = 3;
 +
