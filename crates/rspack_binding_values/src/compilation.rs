@@ -65,7 +65,7 @@ impl JsCompilation {
           };
           new_source
         };
-        let new_source = new_source.into_rspack_result()?;
+        let new_source = new_source.into_rspack_result_with_detail()?;
 
         let new_info: napi::Result<Option<AssetInfo>> = asset_info_update_or_function
           .map(

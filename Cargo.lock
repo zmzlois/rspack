@@ -2629,7 +2629,10 @@ dependencies = [
 name = "rspack_napi_shared"
 version = "0.1.0"
 dependencies = [
+ "better_scoped_tls",
  "napi",
+ "once_cell",
+ "regex",
  "rspack_error",
  "rspack_regex",
  "tokio",

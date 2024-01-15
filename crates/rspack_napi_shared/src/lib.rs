@@ -1,6 +1,7 @@
 #![feature(try_blocks)]
-#![forbid(unsafe_op_in_unsafe_fn)]
+// #![forbid(unsafe_op_in_unsafe_fn)]
 
+// mod context;
 mod errors;
 mod ext;
 mod js_values;
@@ -26,6 +27,14 @@ pub fn get_napi_env() -> napi::sys::napi_env {
 pub fn set_napi_env(napi_env: napi::sys::napi_env) {
   NAPI_ENV.with(|e| *e.borrow_mut() = Some(napi_env))
 }
+
+pub struct NapiContext {
+  pub error_stack: bool,
+}
+
+better_scoped_tls::scoped_tls!(
+   pub static NAPI_CONTEXT: NapiContext
+);
 
 pub use crate::{
   ext::{js_reg_exp_ext::JsRegExpExt, js_string_ext::JsStringExt},

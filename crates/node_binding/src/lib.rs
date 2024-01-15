@@ -29,7 +29,7 @@ use loader::run_builtin_loader;
 use plugins::*;
 use rspack_binding_options::*;
 use rspack_binding_values::*;
-use rspack_napi_shared::set_napi_env;
+use rspack_napi_shared::{set_napi_env, NapiContext, NAPI_CONTEXT};
 use rspack_tracing::chrome::FlushGuard;
 
 #[cfg(not(target_os = "linux"))]
@@ -55,6 +55,7 @@ type CompilerId = u32;
 #[napi(custom_finalize)]
 pub struct Rspack {
   id: CompilerId,
+  napi_context: NapiContext,
   disabled_hooks: DisabledHooks,
 }
 
@@ -101,7 +102,11 @@ impl Rspack {
     let id = NEXT_COMPILER_ID.fetch_add(1, Ordering::SeqCst);
     unsafe { COMPILERS.insert_if_vacant(id, Box::pin(rspack)) }?;
 
-    Ok(Self { id, disabled_hooks })
+    Ok(Self {
+      id,
+      disabled_hooks,
+      napi_context: NapiContext { error_stack: false },
+    })
   }
 
   #[allow(clippy::unwrap_in_result, clippy::unwrap_used)]
@@ -140,7 +145,9 @@ impl Rspack {
         Ok(())
       })
     };
-    unsafe { COMPILERS.borrow_mut(&self.id, handle_build) }
+    NAPI_CONTEXT.set(&self.napi_context, || unsafe {
+      COMPILERS.borrow_mut(&self.id, handle_build)
+    })
   }
 
   /// Rebuild with the given option passed to the constructor
