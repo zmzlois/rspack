@@ -28,6 +28,7 @@ pub fn set_napi_env(napi_env: napi::sys::napi_env) {
   NAPI_ENV.with(|e| *e.borrow_mut() = Some(napi_env))
 }
 
+#[derive(Debug)]
 pub struct NapiContext {
   pub error_stack: bool,
 }

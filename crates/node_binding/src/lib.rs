@@ -89,6 +89,7 @@ impl Rspack {
     let compiler_options = options
       .apply(&mut plugins)
       .map_err(|e| Error::from_reason(format!("{e}")))?;
+    let error_stack = compiler_options.stats.error_stack;
 
     tracing::info!("normalized_options: {:#?}", &compiler_options);
 
@@ -105,7 +106,7 @@ impl Rspack {
     Ok(Self {
       id,
       disabled_hooks,
-      napi_context: NapiContext { error_stack: false },
+      napi_context: NapiContext { error_stack },
     })
   }
 
@@ -134,20 +135,20 @@ impl Rspack {
       let compiler: &'static mut Pin<Box<rspack_core::Compiler<AsyncNodeWritableFileSystem>>> =
         unsafe { std::mem::transmute::<&'_ mut _, &'static mut _>(compiler) };
 
-      callbackify(env, f, async move {
-        compiler.build().await.map_err(|e| {
-          Error::new(
-            napi::Status::GenericFailure,
-            print_error_diagnostic(e, compiler.options.stats.colors),
-          )
-        })?;
-        tracing::info!("build ok");
-        Ok(())
+      NAPI_CONTEXT.set(&self.napi_context, || {
+        callbackify(env, f, async move {
+          compiler.build().await.map_err(|e| {
+            Error::new(
+              napi::Status::GenericFailure,
+              print_error_diagnostic(e, compiler.options.stats.colors),
+            )
+          })?;
+          tracing::info!("build ok");
+          Ok(())
+        })
       })
     };
-    NAPI_CONTEXT.set(&self.napi_context, || unsafe {
-      COMPILERS.borrow_mut(&self.id, handle_build)
-    })
+    unsafe { COMPILERS.borrow_mut(&self.id, handle_build) }
   }
 
   /// Rebuild with the given option passed to the constructor
@@ -191,7 +192,9 @@ impl Rspack {
       })
     };
 
-    unsafe { COMPILERS.borrow_mut(&self.id, handle_rebuild) }
+    NAPI_CONTEXT.set(&self.napi_context, || unsafe {
+      COMPILERS.borrow_mut(&self.id, handle_rebuild)
+    })
   }
 
   /// Get the last compilation

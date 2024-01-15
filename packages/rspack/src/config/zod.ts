@@ -885,6 +885,7 @@ const statsOptions = z.strictObject({
 	warningsCount: z.boolean().optional(),
 	errors: z.boolean().optional(),
 	errorsCount: z.boolean().optional(),
+	errorStack: z.boolean().optional(),
 	colors: z.boolean().optional(),
 	hash: z.boolean().optional(),
 	version: z.boolean().optional(),

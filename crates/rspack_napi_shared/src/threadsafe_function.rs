@@ -19,7 +19,6 @@ use napi::{JsError, JsFunction, NapiValue};
 use rspack_error::{error, InternalError};
 
 use super::{NapiErrorExt, NapiResultExt};
-use crate::errors::NodeError;
 
 /// ThreadSafeFunction Context object
 /// the `value` is the value passed to `call` method
@@ -27,7 +26,7 @@ pub struct ThreadSafeContext<T: 'static, R> {
   pub env: Env,
   pub value: T,
   pub callback: JsFunction,
-  pub tx: tokio::sync::oneshot::Sender<std::result::Result<R, NodeError>>,
+  pub tx: tokio::sync::oneshot::Sender<rspack_error::Result<R>>,
 }
 
 pub struct ThreadSafeCallContext<T: 'static> {
@@ -38,7 +37,7 @@ pub struct ThreadSafeCallContext<T: 'static> {
 
 pub struct ThreadSafeResolver<R> {
   pub env: Env,
-  pub tx: tokio::sync::oneshot::Sender<rspack_error::Result<R, NodeError>>,
+  pub tx: tokio::sync::oneshot::Sender<rspack_error::Result<R>>,
 }
 
 impl<T: 'static, R> ThreadSafeContext<T, R> {
@@ -350,10 +349,7 @@ unsafe extern "C" fn call_js_cb<T: 'static, C, R>(
 
   let ctx: &mut C = unsafe { &mut *context.cast::<C>() };
   let val = Ok(*unsafe {
-    Box::<(
-      T,
-      tokio::sync::oneshot::Sender<std::result::Result<R, NodeError>>,
-    )>::from_raw(data.cast())
+    Box::<(T, tokio::sync::oneshot::Sender<rspack_error::Result<R>>)>::from_raw(data.cast())
   });
 
   let mut recv = ptr::null_mut();

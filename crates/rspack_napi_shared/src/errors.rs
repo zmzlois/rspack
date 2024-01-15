@@ -1,4 +1,4 @@
-use std::{collections::btree_map::Keys, ffi::CString, ptr};
+use std::{ffi::CString, ptr};
 
 use napi::{bindgen_prelude::*, sys::napi_value, Env, Error, Result};
 use once_cell::sync::Lazy;
@@ -8,33 +8,53 @@ use rspack_error::{
   thiserror::{self, Error},
 };
 
+use crate::NAPI_CONTEXT;
+
 static JS_STACK_RE: Lazy<Regex> =
   Lazy::new(|| Regex::new(r"\s+at.*[(\s].*\)?").expect("should init regex"));
 
 #[derive(Debug, Error, Diagnostic)]
 #[diagnostic()]
 #[error("{0}")]
-pub struct NodeError(String);
+pub struct JsError(String);
+
+impl JsError {
+  fn new(mut message: String, stack: bool) -> Self {
+    if !stack {
+      message = JS_STACK_RE.replace_all(&message, "").to_string();
+    }
+    Self(message)
+  }
+}
 
 pub trait NapiErrorExt {
-  fn into_rspack_error_with_detail(self, env: &Env) -> NodeError;
+  fn into_rspack_error(self) -> rspack_error::Error;
+  fn into_rspack_error_with_detail(self, env: &Env) -> rspack_error::Error;
 }
 
 pub trait NapiResultExt<T> {
-  fn into_rspack_result(self, env: &Env) -> rspack_error::Result<T>;
-  fn into_rspack_result_with_detail(self, env: &Env) -> rspack_error::Result<T, NodeError>;
+  fn into_rspack_result(self) -> rspack_error::Result<T>;
+  fn into_rspack_result_with_detail(self, env: &Env) -> rspack_error::Result<T>;
 }
 
 impl NapiErrorExt for Error {
-  fn into_rspack_result(self, env: &Env) -> rspack_error::Result<T> {}
-  fn into_rspack_error_with_detail(self, env: &Env) -> NodeError {
+  fn into_rspack_error(self) -> rspack_error::Error {
+    JsError(self.reason).into()
+  }
+  fn into_rspack_error_with_detail(self, env: &Env) -> rspack_error::Error {
     let reason = extract_stack_or_message_from_napi_error(env, self);
-    NodeError(reason).into()
+    NAPI_CONTEXT.with(|cx| {
+      dbg!(&cx);
+      JsError::new(reason, cx.error_stack).into()
+    })
   }
 }
 
 impl<T: 'static> NapiResultExt<T> for Result<T> {
-  fn into_rspack_result_with_detail(self, env: &Env) -> rspack_error::Result<T, NodeError> {
+  fn into_rspack_result(self) -> rspack_error::Result<T> {
+    self.map_err(|e| e.into_rspack_error())
+  }
+  fn into_rspack_result_with_detail(self, env: &Env) -> rspack_error::Result<T> {
     self.map_err(|e| e.into_rspack_error_with_detail(env))
   }
 }

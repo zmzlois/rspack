@@ -1182,6 +1182,7 @@ export interface RawSplitChunksOptions {
 
 export interface RawStatsOptions {
   colors: boolean
+  errorStack: boolean
 }
 
 export interface RawStyleConfig {
