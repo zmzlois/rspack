@@ -19,6 +19,7 @@ pub struct CacheGroup {
   /// ```
   /// `hello` is the `key` here
   pub key: String,
+  pub used_exports: Option<bool>,
   #[derivative(Debug = "ignore")]
   pub chunk_filter: ChunkFilter,
   #[derivative(Debug = "ignore")]
@@ -40,4 +41,10 @@ pub struct CacheGroup {
   pub max_initial_size: SplitChunkSizes,
   pub filename: Option<Filename>,
   pub automatic_name_delimiter: String,
+}
+
+impl CacheGroup {
+  pub fn get_used_exports(&self, fallback: bool) -> bool {
+    self.used_exports.unwrap_or(fallback)
+  }
 }

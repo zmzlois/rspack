@@ -20,12 +20,14 @@ pub struct PluginOptions {
   pub cache_groups: Vec<CacheGroup>,
   pub fallback_cache_group: FallbackCacheGroup,
   pub hide_path_info: Option<bool>,
+  pub used_exports: bool,
 }
 
 pub struct SplitChunksPlugin {
   cache_groups: Box<[CacheGroup]>,
   fallback_cache_group: FallbackCacheGroup,
   hide_path_info: bool,
+  pub used_exports: bool,
 }
 
 impl SplitChunksPlugin {
@@ -35,6 +37,7 @@ impl SplitChunksPlugin {
       cache_groups: options.cache_groups.into(),
       fallback_cache_group: options.fallback_cache_group,
       hide_path_info: options.hide_path_info.unwrap_or(false),
+      used_exports: options.used_exports,
     }
   }
 

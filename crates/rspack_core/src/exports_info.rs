@@ -60,6 +60,10 @@ impl ExportsInfoId {
     Self(EXPORTS_INFO_ID.fetch_add(1, Relaxed))
   }
 
+  pub fn get_usage_key(&self, mg: &ModuleGraph, runtime: Option<&RuntimeSpec>) -> String {
+    mg.get_exports_info_by_id(self).get_usage_key(mg, runtime)
+  }
+
   pub fn get_exports_info<'a>(&self, mg: &'a ModuleGraph) -> &'a ExportsInfo {
     mg.get_exports_info_by_id(self)
   }
@@ -548,6 +552,26 @@ impl ExportsInfo {
     ProvidedExports::Vec(ret)
   }
 
+  pub fn get_usage_key(&self, mg: &ModuleGraph, runtime: Option<&RuntimeSpec>) -> String {
+    let mut key = vec![];
+    if let Some(redirect) = self.redirect_to {
+      key.push(redirect.get_usage_key(mg, runtime));
+    } else {
+      key.push(format!(
+        "{:?}",
+        self.other_exports_info.get_used(mg, runtime)
+      ));
+    };
+    key.push(format!(
+      "{:?}",
+      self._side_effects_only_info.get_used(mg, runtime)
+    ));
+    for export_info_id in self.exports.values() {
+      let used = export_info_id.get_used(mg, runtime);
+      key.push(format!("{:?}", used));
+    }
+    key.join("|")
+  }
   pub fn get_used_exports(&self, mg: &ModuleGraph, runtime: Option<&RuntimeSpec>) -> UsedExports {
     if self.redirect_to.is_none() {
       match self.other_exports_info.get_used(mg, runtime) {

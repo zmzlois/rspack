@@ -9,6 +9,7 @@ version    = "0.1.0"
 
 [dependencies]
 async-trait       = { workspace = true }
+cached            = "0.48.1"
 dashmap           = { workspace = true }
 derivative        = { workspace = true }
 num-bigint        = "0.4.4"

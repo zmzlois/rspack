@@ -52,6 +52,7 @@ pub struct RawSplitChunksOptions {
   pub max_size: Option<f64>,
   pub max_async_size: Option<f64>,
   pub max_initial_size: Option<f64>,
+  pub used_exports: Option<bool>,
 }
 
 #[derive(Derivative, Deserialize)]
@@ -59,6 +60,7 @@ pub struct RawSplitChunksOptions {
 #[napi(object)]
 #[derivative(Debug)]
 pub struct RawCacheGroupOptions {
+  pub used_exports: Option<bool>,
   pub key: String,
   pub priority: Option<i32>,
   // pub reuse_existing_chunk: Option<bool>,
@@ -209,6 +211,7 @@ impl From<RawSplitChunksOptions> for rspack_plugin_split_chunks::PluginOptions {
             max_async_size,
             max_initial_size,
             r#type,
+            used_exports: v.used_exports,
           }
         }),
     );
@@ -248,6 +251,7 @@ impl From<RawSplitChunksOptions> for rspack_plugin_split_chunks::PluginOptions {
           .unwrap_or(overall_automatic_name_delimiter.clone()),
       },
       hide_path_info: raw_opts.hide_path_info,
+      used_exports: raw_opts.used_exports.unwrap_or_default(),
     }
   }
 }
