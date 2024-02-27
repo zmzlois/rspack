@@ -3,7 +3,6 @@ use napi_derive::napi;
 
 #[napi(object)]
 pub struct JsHooks {
-  pub process_assets_stage_additional: JsFunction,
   pub process_assets_stage_pre_process: JsFunction,
   pub process_assets_stage_derived: JsFunction,
   pub process_assets_stage_additions: JsFunction,
@@ -51,6 +50,7 @@ pub struct JsHooks {
 pub enum JsHookType {
   CompilerCompilation,
   CompilerMake,
+  CompilationProcessAssetsStageAdditional,
 }
 
 #[napi(object)]

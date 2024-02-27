@@ -14,7 +14,7 @@ use rspack_core::{
   ProcessAssetsArgs, ThisCompilationArgs,
 };
 use rspack_error::Result;
-use rspack_hook::AsyncSeries2;
+use rspack_hook::{AsyncSeries, AsyncSeries2};
 
 #[derive(Debug, Clone, Default)]
 pub struct ProgressPluginOptions {
@@ -207,13 +207,21 @@ struct ProgressPluginCompilationHook {
 
 #[async_trait]
 impl AsyncSeries2<Compilation, CompilationParams> for ProgressPluginCompilationHook {
-  async fn run(&self, _: &mut Compilation, _: &mut CompilationParams) -> Result<()> {
+  async fn run(&self, compilation: &mut Compilation, _: &mut CompilationParams) -> Result<()> {
     self.inner.handler(
       0.09,
       "setup".to_string(),
       vec!["compilation".to_string()],
       None,
     );
+    compilation
+      .hooks
+      .write()
+      .await
+      .process_assets_stage_additional
+      .tap(Box::new(ProgressPluginProcessAssetsHook {
+        inner: self.inner.clone(),
+      }));
     Ok(())
   }
 }
@@ -239,6 +247,18 @@ impl AsyncSeries2<Compilation, Vec<MakeParam>> for ProgressPluginMakeHook {
   }
 }
 
+struct ProgressPluginProcessAssetsHook {
+  inner: Arc<ProgressPluginInner>,
+}
+
+#[async_trait]
+impl AsyncSeries<Compilation> for ProgressPluginProcessAssetsHook {
+  async fn run(&self, _: &mut Compilation) -> Result<()> {
+    self.inner.sealing_hooks_report("asset processing", 35);
+    Ok(())
+  }
+}
+
 #[async_trait]
 impl Plugin for ProgressPlugin {
   fn name(&self) -> &'static str {
@@ -255,6 +275,13 @@ impl Plugin for ProgressPlugin {
       .compiler_hooks
       .compilation
       .tap(Box::new(ProgressPluginCompilationHook {
+        inner: self.inner.clone(),
+      }));
+    ctx
+      .context
+      .compiler_hooks
+      .make
+      .tap(Box::new(ProgressPluginMakeHook {
         inner: self.inner.clone(),
       }));
     Ok(())
@@ -410,15 +437,6 @@ impl Plugin for ProgressPlugin {
 
   fn chunk_ids(&self, _compilation: &mut Compilation) -> Result<()> {
     self.inner.sealing_hooks_report("chunk ids", 21);
-    Ok(())
-  }
-
-  async fn process_assets_stage_additional(
-    &self,
-    _ctx: PluginContext,
-    _args: ProcessAssetsArgs<'_>,
-  ) -> PluginProcessAssetsOutput {
-    self.inner.sealing_hooks_report("asset processing", 35);
     Ok(())
   }
 

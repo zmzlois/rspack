@@ -16,11 +16,12 @@ use rayon::prelude::*;
 use rspack_error::{error, Diagnostic, Result, Severity, TWithDiagnosticArray};
 use rspack_futures::FuturesResults;
 use rspack_hash::{RspackHash, RspackHashDigest};
+use rspack_hook::AsyncSeriesHook;
 use rspack_identifier::{Identifiable, IdentifierMap, IdentifierSet};
 use rspack_sources::{BoxSource, CachedSource, OriginalSource, SourceExt};
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet, FxHasher};
 use swc_core::ecma::ast::ModuleItem;
-use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::{mpsc::error::TryRecvError, RwLock};
 use tracing::instrument;
 
 use super::{
@@ -55,6 +56,11 @@ pub type BuildDependency = (
   Option<ModuleIdentifier>, /* parent module */
 );
 
+#[derive(Debug, Default)]
+pub struct CompilationHooks {
+  pub process_assets_stage_additional: AsyncSeriesHook<Compilation>,
+}
+
 #[derive(Debug)]
 pub struct Compilation {
   // Mark compilation status, because the hash of `[hash].hot-update.js/json` is previous compilation hash.
@@ -63,6 +69,7 @@ pub struct Compilation {
   // The status is different, should generate different hash for `.hot-update.js`
   // So use compilation hash update `hot_index` to fix it.
   pub hot_index: u32,
+  pub hooks: Arc<RwLock<CompilationHooks>>,
   pub records: Option<CompilationRecords>,
   pub options: Arc<CompilerOptions>,
   pub entries: Entry,
@@ -132,6 +139,7 @@ impl Compilation {
   ) -> Self {
     Self {
       hot_index: 0,
+      hooks: Default::default(),
       records,
       options,
       module_graph,
@@ -1485,6 +1493,14 @@ impl Compilation {
   }
   #[instrument(name = "compilation:process_asssets", skip_all)]
   async fn process_assets(&mut self, plugin_driver: SharedPluginDriver) -> Result<()> {
+    self
+      .hooks
+      .clone()
+      .read()
+      .await
+      .process_assets_stage_additional
+      .call(self)
+      .await?;
     plugin_driver
       .process_assets(ProcessAssetsArgs { compilation: self })
       .await

@@ -258,14 +258,6 @@ pub trait Plugin: Debug + Send + Sync {
     Ok(())
   }
 
-  async fn process_assets_stage_additional(
-    &self,
-    _ctx: PluginContext,
-    _args: ProcessAssetsArgs<'_>,
-  ) -> PluginProcessAssetsOutput {
-    Ok(())
-  }
-
   async fn process_assets_stage_pre_process(
     &self,
     _ctx: PluginContext,

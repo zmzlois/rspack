@@ -35,8 +35,8 @@ impl<I> AsyncSeriesHook<I> {
     Ok(())
   }
 
-  pub fn tap(&mut self, hook: impl AsyncSeries<I> + 'static + Send + Sync) {
-    sort_push(&mut self.0, Box::new(hook), |e| e.stage());
+  pub fn tap(&mut self, hook: Box<dyn AsyncSeries<I> + Send + Sync>) {
+    sort_push(&mut self.0, hook, |e| e.stage());
   }
 }
 

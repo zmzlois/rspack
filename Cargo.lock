@@ -2786,6 +2786,7 @@ dependencies = [
  "rspack_error",
  "rspack_futures",
  "rspack_hash",
+ "rspack_hook",
  "rspack_testing",
  "rustc-hash",
  "sugar_path",

@@ -25,7 +25,7 @@ use rspack_core::{
   PluginNormalModuleFactoryCreateModuleHookOutput, ResourceData,
 };
 use rspack_core::{PluginNormalModuleFactoryResolveForSchemeOutput, PluginShouldEmitHookOutput};
-use rspack_hook::AsyncSeries2;
+use rspack_hook::{AsyncSeries, AsyncSeries2};
 use rspack_napi_shared::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use rspack_napi_shared::NapiResultExt;
 
@@ -37,7 +37,6 @@ pub struct JsHooksAdapterInner {
   compiler_compilation_hooks: Vec<CompilerCompilationHook>,
   compiler_make_hooks: Vec<CompilerMakeHook>,
   pub this_compilation_tsfn: ThreadsafeFunction<JsCompilation, ()>,
-  pub process_assets_stage_additional_tsfn: ThreadsafeFunction<(), ()>,
   pub process_assets_stage_pre_process_tsfn: ThreadsafeFunction<(), ()>,
   pub process_assets_stage_derived_tsfn: ThreadsafeFunction<(), ()>,
   pub process_assets_stage_additions_tsfn: ThreadsafeFunction<(), ()>,
@@ -147,6 +146,33 @@ impl AsyncSeries2<Compilation, Vec<MakeParam>> for CompilerMakeHook {
     compilation: &mut Compilation,
     _: &mut Vec<MakeParam>,
   ) -> rspack_error::Result<()> {
+    let compilation = JsCompilation::from_compilation(unsafe {
+      std::mem::transmute::<&'_ mut rspack_core::Compilation, &'static mut rspack_core::Compilation>(
+        compilation,
+      )
+    });
+
+    self
+      .0
+      .call(compilation, ThreadsafeFunctionCallMode::NonBlocking)
+      .into_rspack_result()?
+      .await
+      .unwrap_or_else(|err| panic!("Failed to call compilation: {err}"))
+  }
+}
+
+#[derive(Clone)]
+struct CompilationProcessAssetsStageAdditionalHook(Arc<ThreadsafeFunction<JsCompilation, ()>>);
+
+impl CompilationProcessAssetsStageAdditionalHook {
+  pub fn new(function: Arc<ThreadsafeFunction<JsCompilation, ()>>) -> Self {
+    Self(function)
+  }
+}
+
+#[async_trait]
+impl AsyncSeries<Compilation> for CompilationProcessAssetsStageAdditionalHook {
+  async fn run(&self, compilation: &mut Compilation) -> rspack_error::Result<()> {
     let compilation = JsCompilation::from_compilation(unsafe {
       std::mem::transmute::<&'_ mut rspack_core::Compilation, &'static mut rspack_core::Compilation>(
         compilation,
@@ -325,23 +351,6 @@ impl rspack_core::Plugin for JsHooksAdapterPlugin {
         stop,
       )
     })
-  }
-
-  async fn process_assets_stage_additional(
-    &self,
-    _ctx: rspack_core::PluginContext,
-    _args: rspack_core::ProcessAssetsArgs<'_>,
-  ) -> rspack_core::PluginProcessAssetsHookOutput {
-    if self.is_hook_disabled(&Hook::ProcessAssetsStageAdditional) {
-      return Ok(());
-    }
-
-    self
-      .process_assets_stage_additional_tsfn
-      .call((), ThreadsafeFunctionCallMode::NonBlocking)
-      .into_rspack_result()?
-      .await
-      .unwrap_or_else(|err| panic!("Failed to call process assets stage additional: {err}"))
   }
 
   async fn process_assets_stage_pre_process(
@@ -975,7 +984,6 @@ impl JsHooksAdapterPlugin {
     compiler_hooks: Vec<JsHook>,
   ) -> Result<Self> {
     let JsHooks {
-      process_assets_stage_additional,
       process_assets_stage_pre_process,
       process_assets_stage_derived,
       process_assets_stage_additions,
@@ -1018,8 +1026,6 @@ impl JsHooksAdapterPlugin {
       runtime_module,
     } = js_hooks;
 
-    let process_assets_stage_additional_tsfn: ThreadsafeFunction<(), ()> =
-      js_fn_into_threadsafe_fn!(process_assets_stage_additional, env);
     let process_assets_stage_pre_process_tsfn: ThreadsafeFunction<(), ()> =
       js_fn_into_threadsafe_fn!(process_assets_stage_pre_process, env);
     let process_assets_stage_derived_tsfn: ThreadsafeFunction<(), ()> =
@@ -1103,6 +1109,7 @@ impl JsHooksAdapterPlugin {
 
     let mut compiler_compilation_hooks = Vec::new();
     let mut compiler_make_hooks = Vec::new();
+    let mut compilation_process_assets_stage_additional_hooks = Vec::new();
     for hook in compiler_hooks {
       match hook.r#type {
         JsHookType::CompilerCompilation => compiler_compilation_hooks.push(
@@ -1111,6 +1118,14 @@ impl JsHooksAdapterPlugin {
         JsHookType::CompilerMake => compiler_make_hooks.push(CompilerMakeHook::new(Arc::new(
           js_fn_into_threadsafe_fn!(hook.function, env),
         ))),
+        JsHookType::CompilationProcessAssetsStageAdditional => {
+          compilation_process_assets_stage_additional_hooks.push(
+            CompilationProcessAssetsStageAdditionalHook::new(Arc::new(js_fn_into_threadsafe_fn!(
+              hook.function,
+              env
+            ))),
+          )
+        }
       }
     }
 
@@ -1119,7 +1134,7 @@ impl JsHooksAdapterPlugin {
         disabled_hooks,
         compiler_compilation_hooks,
         compiler_make_hooks,
-        process_assets_stage_additional_tsfn,
+        compilation_process_assets_stage_additional_hooks,
         process_assets_stage_pre_process_tsfn,
         process_assets_stage_derived_tsfn,
         process_assets_stage_additions_tsfn,

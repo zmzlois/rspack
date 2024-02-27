@@ -12,11 +12,13 @@ use dashmap::DashSet;
 use glob::{MatchOptions, Pattern as GlobPattern};
 use regex::Regex;
 use rspack_core::{
-  rspack_sources::RawSource, AssetInfo, AssetInfoRelated, Compilation, CompilationAsset,
-  CompilationLogger, Filename, Logger, PathData, Plugin,
+  rspack_sources::RawSource, ApplyContext, AssetInfo, AssetInfoRelated, Compilation,
+  CompilationAsset, CompilationLogger, CompilationParams, CompilerOptions, Filename, Logger,
+  PathData, Plugin, PluginContext,
 };
-use rspack_error::{Diagnostic, DiagnosticError, Error, ErrorExt};
+use rspack_error::{Diagnostic, DiagnosticError, Error, ErrorExt, Result};
 use rspack_hash::{HashDigest, HashFunction, HashSalt, RspackHash, RspackHashDigest};
+use rspack_hook::{AsyncSeries, AsyncSeries2};
 use sugar_path::{AsPath, SugarPath};
 
 #[derive(Debug, Clone)]
@@ -98,7 +100,7 @@ pub struct RunPatternResult {
 
 #[derive(Debug)]
 pub struct CopyRspackPlugin {
-  pub patterns: Vec<CopyPattern>,
+  pub patterns: Arc<Vec<CopyPattern>>,
 }
 
 lazy_static::lazy_static! {
@@ -108,7 +110,9 @@ lazy_static::lazy_static! {
 
 impl CopyRspackPlugin {
   pub fn new(patterns: Vec<CopyPattern>) -> Self {
-    Self { patterns }
+    Self {
+      patterns: Arc::new(patterns),
+    }
   }
 
   fn get_content_hash(
@@ -509,12 +513,49 @@ impl Plugin for CopyRspackPlugin {
     "rspack.CopyRspackPlugin"
   }
 
-  async fn process_assets_stage_additional(
+  fn apply(
     &self,
-    _ctx: rspack_core::PluginContext,
-    mut args: rspack_core::ProcessAssetsArgs<'_>,
-  ) -> rspack_core::PluginProcessAssetsOutput {
-    let logger = args.compilation.get_logger(self.name());
+    ctx: PluginContext<&mut ApplyContext>,
+    _options: &mut CompilerOptions,
+  ) -> Result<()> {
+    ctx
+      .context
+      .compiler_hooks
+      .compilation
+      .tap(Box::new(CopyRspackPluginCompilationHook {
+        patterns: self.patterns.clone(),
+      }));
+    Ok(())
+  }
+}
+
+struct CopyRspackPluginCompilationHook {
+  patterns: Arc<Vec<CopyPattern>>,
+}
+
+#[async_trait]
+impl AsyncSeries2<Compilation, CompilationParams> for CopyRspackPluginCompilationHook {
+  async fn run(&self, compilation: &mut Compilation, _: &mut CompilationParams) -> Result<()> {
+    compilation
+      .hooks
+      .write()
+      .await
+      .process_assets_stage_additional
+      .tap(Box::new(CopyRspackPluginProcessAssetsHook {
+        patterns: self.patterns.clone(),
+      }));
+    Ok(())
+  }
+}
+
+struct CopyRspackPluginProcessAssetsHook {
+  patterns: Arc<Vec<CopyPattern>>,
+}
+
+#[async_trait]
+impl AsyncSeries<Compilation> for CopyRspackPluginProcessAssetsHook {
+  async fn run(&self, compilation: &mut Compilation) -> Result<()> {
+    let logger = compilation.get_logger("rspack.CopyRspackPlugin");
     let start = logger.time("run pattern");
     let file_dependencies = DashSet::default();
     let context_dependencies = DashSet::default();
@@ -527,15 +568,15 @@ impl Plugin for CopyRspackPlugin {
       .map(|(index, pattern)| {
         let mut pattern = pattern.clone();
         if pattern.context.is_none() {
-          pattern.context = Some(args.compilation.options.context.as_path().into());
+          pattern.context = Some(compilation.options.context.as_path().into());
         } else if let Some(ctx) = pattern.context.clone()
           && !ctx.is_absolute()
         {
-          pattern.context = Some(args.compilation.options.context.as_path().join(ctx))
+          pattern.context = Some(compilation.options.context.as_path().join(ctx))
         };
 
-        Self::run_patter(
-          args.compilation,
+        CopyRspackPlugin::run_patter(
+          compilation,
           &pattern,
           index,
           &file_dependencies,
@@ -558,7 +599,6 @@ impl Plugin for CopyRspackPlugin {
     logger.time_end(start);
 
     let start = logger.time("emit assets");
-    let compilation = &mut args.compilation;
     compilation.file_dependencies.extend(file_dependencies);
     compilation
       .context_dependencies
@@ -573,7 +613,7 @@ impl Plugin for CopyRspackPlugin {
 
     copied_result.sort_unstable_by(|a, b| a.0.cmp(&b.0));
     copied_result.into_iter().for_each(|(_priority, result)| {
-      if let Some(exist_asset) = args.compilation.assets_mut().get_mut(&result.filename) {
+      if let Some(exist_asset) = compilation.assets_mut().get_mut(&result.filename) {
         if !result.force {
           return;
         }
@@ -588,7 +628,7 @@ impl Plugin for CopyRspackPlugin {
           set_info(&mut asset_info, info);
         }
 
-        args.compilation.emit_asset(
+        compilation.emit_asset(
           result.filename,
           CompilationAsset {
             source: Some(Arc::new(result.source)),

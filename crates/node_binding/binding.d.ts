@@ -331,7 +331,6 @@ export interface JsHook {
 }
 
 export interface JsHooks {
-  processAssetsStageAdditional: (...args: any[]) => any
   processAssetsStagePreProcess: (...args: any[]) => any
   processAssetsStageDerived: (...args: any[]) => any
   processAssetsStageAdditions: (...args: any[]) => any
@@ -376,7 +375,8 @@ export interface JsHooks {
 
 export enum JsHookType {
   CompilerCompilation = 'CompilerCompilation',
-  CompilerMake = 'CompilerMake'
+  CompilerMake = 'CompilerMake',
+  CompilationProcessAssetsStageAdditional = 'CompilationProcessAssetsStageAdditional'
 }
 
 export interface JsLoaderContext {

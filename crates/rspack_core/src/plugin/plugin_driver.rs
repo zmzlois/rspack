@@ -456,7 +456,6 @@ impl PluginDriver {
         }
       };
     }
-    run_stage!(process_assets_stage_additional);
     run_stage!(process_assets_stage_pre_process);
     run_stage!(process_assets_stage_derived);
     run_stage!(process_assets_stage_additions);
