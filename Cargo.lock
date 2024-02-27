@@ -901,12 +901,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
-name = "fn-cache"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "792d6640f161f2dfd3473bd76e617ba8e42533c25502410ffdadf360909f2e8e"
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3161,7 +3155,6 @@ dependencies = [
  "cached",
  "dashmap",
  "derivative",
- "fn-cache",
  "num-bigint",
  "once_cell",
  "rayon",

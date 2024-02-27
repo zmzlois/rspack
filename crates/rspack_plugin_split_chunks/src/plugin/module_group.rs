@@ -1,3 +1,5 @@
+use std::default;
+
 use cached::proc_macro::cached;
 use dashmap::DashMap;
 use rayon::prelude::*;
@@ -48,7 +50,6 @@ impl SplitChunksPlugin {
   ) -> ModuleGroupMap {
     let chunk_db = &compilation.chunk_by_ukey;
     let chunk_group_db = &compilation.chunk_group_by_ukey;
-    let mut get_exports_chunk_sets_in_graph_cached = false;
 
     /// If a module meets requirements of a `ModuleGroup`. We consider the `Module` and the `CacheGroup`
     /// to be a `MatchedItem`, which are consumed later to calculate `ModuleGroup`.
@@ -94,27 +95,40 @@ impl SplitChunksPlugin {
       result
     };
 
+    let mut used_exports_combs = UsedExportsCombsCache::default();
+
     let get_combination_by_used_exports = |chunks_key: ChunksKey, module: ModuleIdentifier| {
       // if let Some(combs) = combinations_cache.get(&chunks_key) {
       //   return combs.clone();
       // }
-      if !get_exports_chunk_sets_in_graph_cached {
-        Self::get_exports_chunk_sets_in_graph(compilation, grouped_by_exports_map);
-      } else {
-      };
-      let mut result = vec![chunks_set.clone()];
-      for (count, array_of_set) in &chunk_sets_by_count {
-        if *count < chunks_set.len() {
-          for set in array_of_set {
-            if set.is_subset(chunks_set) {
-              result.push(set.clone());
-            }
-          }
+      if !used_exports_combs.cached {
+        let (chunk_sets_in_graph, single_chunk_sets) = Self::get_exports_chunk_sets_in_graph(
+          compilation,
+          &mut used_exports_combs.grouped_by_exports_map,
+        );
+        used_exports_combs.chunk_sets_in_graph = chunk_sets_in_graph;
+        used_exports_combs.single_chunk_sets = single_chunk_sets;
+      }
+      used_exports_combs.cached = true;
+      let mut set = FxHashSet::default();
+      if let Some(grouped_by_used_exports) = used_exports_combs.grouped_by_exports_map.get(&module)
+      {
+        for chunks in grouped_by_used_exports {
+          let chunks_key = Self::get_key(chunks.iter());
         }
       }
+      // let mut result = vec![chunks_set.clone()];
+      // for (count, array_of_set) in &chunk_sets_by_count {
+      //   if *count < chunks_set.len() {
+      //     for set in array_of_set {
+      //       if set.is_subset(chunks_set) {
+      //         result.push(set.clone());
+      //       }
+      //     }
+      //   }
+      // }
 
-      combinations_cache.insert(chunks_key, result.clone());
-      result
+      set
     };
 
     compilation.module_graph.modules().values().par_bridge().for_each(|module| {
@@ -435,7 +449,6 @@ impl SplitChunksPlugin {
     grouped_by_used_exports.values().cloned().collect()
   }
 
-  #[cached]
   fn get_exports_chunk_sets_in_graph(
     compilation: &Compilation,
     grouped_by_exports_map: &mut FxHashMap<ModuleIdentifier, Vec<Vec<ChunkUkey>>>,
@@ -466,11 +479,10 @@ impl SplitChunksPlugin {
   }
 }
 
-struct FnCache<R> {
-  f: Box<dyn Fn<R>>,
+#[derive(Default)]
+struct UsedExportsCombsCache {
   cached: bool,
-}
-
-impl<R> FnCache<R> {
-  fn exec(&mut self, r: R) {}
+  pub grouped_by_exports_map: FxHashMap<ModuleIdentifier, Vec<Vec<ChunkUkey>>>,
+  pub chunk_sets_in_graph: FxHashMap<ChunksKey, FxHashSet<ChunkUkey>>,
+  pub single_chunk_sets: FxHashSet<ChunkUkey>,
 }
