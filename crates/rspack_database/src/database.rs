@@ -31,6 +31,10 @@ impl<Item: Any> Database<Item> {
     }
   }
 
+  pub fn len(&self) -> usize {
+    self.inner.len()
+  }
+
   pub fn contains(&self, id: &Ukey<Item>) -> bool {
     self.inner.contains_key(id)
   }

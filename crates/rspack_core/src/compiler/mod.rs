@@ -167,7 +167,7 @@ where
       self.compilation.push_batch_diagnostic(vec![e.into()]);
     }
     logger.time_end(make_hook_start);
-    self.compilation.make(params).await?;
+    self.compilation.make(params.clone()).await?;
     logger.time_end(make_start);
 
     let start = logger.time("finish make hook");
@@ -282,7 +282,10 @@ where
       self.compilation.optimize_analyze_result_map = analyze_result.analyze_results;
     }
     let start = logger.time("seal compilation");
-    self.compilation.seal(self.plugin_driver.clone()).await?;
+    self
+      .compilation
+      .seal(self.plugin_driver.clone(), &params)
+      .await?;
     logger.time_end(start);
 
     let start = logger.time("afterCompile hook");

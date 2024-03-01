@@ -7,7 +7,7 @@ use crate::{BuildDependency, DependencyId, ModuleIdentifier};
 mod rebuild_deps_builder;
 pub use rebuild_deps_builder::RebuildDepsBuilder;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum MakeParam {
   ModifiedFiles(HashSet<PathBuf>),
   DeletedFiles(HashSet<PathBuf>),

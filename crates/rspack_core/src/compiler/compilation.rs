@@ -1548,7 +1548,11 @@ impl Compilation {
   }
 
   #[instrument(name = "compilation:seal", skip_all)]
-  pub async fn seal(&mut self, plugin_driver: SharedPluginDriver) -> Result<()> {
+  pub async fn seal(
+    &mut self,
+    plugin_driver: SharedPluginDriver,
+    params: &Vec<MakeParam>,
+  ) -> Result<()> {
     let logger = self.get_logger("rspack.Compilation");
 
     // https://github.com/webpack/webpack/blob/main/lib/Compilation.js#L2809
@@ -1563,12 +1567,12 @@ impl Compilation {
     //   debug_all_exports_info!(&self.module_graph);
     // }
     let start = logger.time("create chunks");
-    use_code_splitting_cache(self, |compilation| async {
-      build_chunk_graph(compilation)?;
+    use_code_splitting_cache(self, |compilation, code_splitter| async {
+      let code_splitter = build_chunk_graph(compilation, &params, code_splitter)?;
       plugin_driver.optimize_modules(compilation).await?;
       plugin_driver.after_optimize_modules(compilation).await?;
       plugin_driver.optimize_chunks(compilation).await?;
-      Ok(compilation)
+      Ok((compilation, code_splitter))
     })
     .await?;
     logger.time_end(start);
