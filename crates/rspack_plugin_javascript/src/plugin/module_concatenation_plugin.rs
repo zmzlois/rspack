@@ -155,6 +155,7 @@ impl ModuleConcatenationPlugin {
   ) -> IndexSet<ModuleIdentifier> {
     let mut set = IndexSet::default();
     let module = mg.module_by_identifier(&mi).expect("should have module");
+    // let flag = mi.ends_with("node_modules/@ant-design/cssinjs/es/index.js");
     for d in module.get_dependencies() {
       let dep = d.get_dependency(mg);
       let is_harmony_import_like = is_harmony_dep_like(dep);
@@ -164,6 +165,10 @@ impl ModuleConcatenationPlugin {
       let Some(con) = mg.connection_by_dependency(d) else {
         continue;
       };
+      // if flag {
+      //   dbg!(&con);
+      //   dbg!(&con.is_target_active(mg, runtime));
+      // }
       if !con.is_target_active(mg, runtime) {
         continue;
       }
@@ -983,11 +988,6 @@ impl Plugin for ModuleConcatenationPlugin {
           }
         }
       }
-      // compilation
-      //   .module_graph
-      //   .module_identifier_to_module
-      //   .remove(&root_module_id);
-      // compilation.chunk_graph.clear
 
       compilation
         .chunk_graph
@@ -1012,6 +1012,8 @@ impl Plugin for ModuleConcatenationPlugin {
           !inner_connection
         },
       );
+
+      // compilation.module_graph.revoke_module(&root_module_id);
       compilation.module_graph.add_module(new_module.boxed());
     }
     Ok(())
