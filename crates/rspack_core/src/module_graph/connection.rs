@@ -114,8 +114,8 @@ impl ModuleGraphConnection {
     runtime: Option<&RuntimeSpec>,
   ) -> ConnectionState {
     match module_graph
-      .connection_to_condition
-      .get(self)
+      .connection_id_by_connection(self)
+      .and_then(|id| module_graph.connection_to_condition.get(&id))
       .unwrap_or_else(|| panic!("{:#?}", self))
     {
       DependencyCondition::False => ConnectionState::Bool(false),

@@ -7,6 +7,7 @@ use std::{
 };
 
 use dashmap::DashMap;
+use futures::task::waker;
 use indexmap::{IndexMap, IndexSet};
 use once_cell::sync::OnceCell;
 use regex::Regex;
@@ -1180,11 +1181,11 @@ impl Module for ConcatenatedModule {
           }
 
           // if info.module.contains("toConsumableArray.js") {
-          // dbg!(&box_module.identifier());
-          // dbg!(&info.module);
-          // dbg!(&compilation
-          //   .module_graph
-          //   .module_graph_module_by_identifier(&info.module));
+          //   dbg!(&box_module.identifier());
+          //   dbg!(&info.module);
+          //   dbg!(&compilation
+          //     .module_graph
+          //     .module_graph_module_by_identifier(&info.module));
           // }
           result.add(RawSource::from(format!(
             "let {} = {}({});",
@@ -1526,6 +1527,9 @@ impl ConcatenatedModule {
         .module_by_identifier(&self.id)
         .expect("should have module");
       for c in mg.get_outgoing_connections(self_module) {
+        if c.module_identifier.contains("toConsumableArray") {
+          dbg!(&c);
+        }
         connections.push(*c);
       }
     }

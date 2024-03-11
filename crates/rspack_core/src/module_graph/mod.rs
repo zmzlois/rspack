@@ -68,7 +68,7 @@ pub struct ModuleGraph {
   pub exports_info_hash: DashMap<ExportsInfoId, u64>,
   pub exports_info_map: vec_map::VecMap<ExportsInfo>,
   pub export_info_map: vec_map::VecMap<ExportInfo>,
-  connection_to_condition: HashMap<ModuleGraphConnection, DependencyCondition>,
+  connection_to_condition: HashMap<ConnectionId, DependencyCondition>,
   pub dep_meta_map: HashMap<DependencyId, DependencyExtraMeta>,
 }
 
@@ -112,6 +112,10 @@ impl ModuleGraph {
     {
       val.insert(module_graph_module);
     }
+  }
+
+  pub fn connection_id_by_connection(&self, con: &ModuleGraphConnection) -> Option<ConnectionId> {
+    self.connections_map.get(con).copied()
   }
 
   /// Make sure both source and target module are exists in module graph
@@ -160,29 +164,55 @@ impl ModuleGraph {
 
     // Outgoing connections
     // avoid violating rustc borrow rules
-    let mut add_outgoing_connection = vec![];
+    // let mut add_outgoing_connection = vec![];
     let mut delete_outgoing_connection = vec![];
+    // let mut dep_to_connection_id = vec![];
     for connection_id in old_mgm.outgoing_connections().clone().into_iter() {
       let connection = self
         .connection_by_connection_id(&connection_id)
         .cloned()
         .expect("should have connection");
+
       if filter_connection(&connection, &*self) {
-        let new_connection_id = self.clone_module_graph_connection(
-          &connection,
-          Some(*new_module),
-          connection.module_identifier,
-        );
-        add_outgoing_connection.push(new_connection_id);
+        // let new_connection_id = self.clone_module_graph_connection(
+        //   &connection,
+        //   Some(*new_module),
+        //   connection.module_identifier,
+        // );
+
+        let connection = {
+          let connection = self
+            .connection_by_connection_id_mut(&connection_id)
+            .expect("should have connection");
+          connection.original_module_identifier = Some(*new_module);
+          *connection
+        };
+        self.connections_map.insert(connection, connection_id);
+        // let connection = self
+        //   .connection_by_connection_id_mut(&connection_id)
+        //   .expect("should have connection");
+        // connection.set_active(false);
+        // delete_outgoing_connection.push(value);
+        // dep_to_connection_id.push((connection.dependency_id, new_connection_id));
+        // add_outgoing_connection.push(new_connection_id);
         delete_outgoing_connection.push(connection_id);
       }
     }
+    // for (dep_id, connection_id) in dep_to_connection_id {
+    //   // dep_id -> module_identifier is unchanged
+    //   self
+    //     .dependency_id_to_connection_id
+    //     .insert(dep_id, connection_id);
+    //   self
+    //     .connection_id_to_dependency_id
+    //     .insert(connection_id, dep_id);
+    // }
 
     let new_mgm = self
       .module_graph_module_by_identifier_mut(new_module)
       .expect("should have mgm");
-    for c in add_outgoing_connection {
-      new_mgm.add_outgoing_connection(c);
+    for c in delete_outgoing_connection.iter() {
+      new_mgm.add_outgoing_connection(*c);
     }
 
     let old_mgm = self
@@ -191,6 +221,9 @@ impl ModuleGraph {
     for c in delete_outgoing_connection {
       old_mgm.remove_outgoing_connection(c);
     }
+    // for c in delete_outgoing_connection {
+    //   self.revoke_connection(c);
+    // }
 
     let old_mgm = self
       .module_graph_module_by_identifier(old_module)
@@ -198,20 +231,28 @@ impl ModuleGraph {
 
     // Outgoing connections
     // avoid violating rustc borrow rules
-    let mut add_incoming_connection = vec![];
+    // let mut add_incoming_connection = vec![];
     let mut delete_incoming_connection = vec![];
     for connection_id in old_mgm.incoming_connections().clone().into_iter() {
       let connection = self
         .connection_by_connection_id(&connection_id)
-        .cloned()
         .expect("should have connection");
       if filter_connection(&connection, &*self) {
-        let new_connection_id = self.clone_module_graph_connection(
-          &connection,
-          connection.original_module_identifier,
-          *new_module,
-        );
-        add_incoming_connection.push(new_connection_id);
+        // let new_connection_id = self.clone_module_graph_connection(
+        //   &connection,
+        //   connection.original_module_identifier,
+        //   *new_module,
+        // );
+        let connection = {
+          let connection = self
+            .connection_by_connection_id_mut(&connection_id)
+            .expect("should have connection");
+          connection.module_identifier = *new_module;
+          *connection
+        };
+
+        self.connections_map.insert(connection, connection_id);
+        // add_incoming_connection.push(new_connection_id);
         delete_incoming_connection.push(connection_id);
       }
     }
@@ -219,16 +260,19 @@ impl ModuleGraph {
     let new_mgm = self
       .module_graph_module_by_identifier_mut(new_module)
       .expect("should have mgm");
-    for c in add_incoming_connection {
-      new_mgm.add_incoming_connection(c);
+    for c in delete_incoming_connection.iter() {
+      new_mgm.add_incoming_connection(*c);
     }
-
+    //
     let old_mgm = self
       .module_graph_module_by_identifier_mut(old_module)
       .expect("should have mgm");
-    for c in delete_incoming_connection {
-      old_mgm.remove_incoming_connection(c);
+    for c in delete_incoming_connection.iter() {
+      old_mgm.remove_incoming_connection(*c);
     }
+    // for c in delete_incoming_connection {
+    //   self.revoke_connection(c);
+    // }
   }
 
   pub fn copy_outgoing_module_connections<F>(
@@ -274,7 +318,10 @@ impl ModuleGraph {
     original_module_identifier: Option<ModuleIdentifier>,
     module_identifier: ModuleIdentifier,
   ) -> ConnectionId {
-    // let old_con_id = self.connection_id_by_dependency_id(&old_con.dependency_id);
+    let old_con_id = *self
+      .connections_map
+      .get(&old_con)
+      .expect("should have connection id");
     let mut new_connection = *old_con;
     new_connection.original_module_identifier = original_module_identifier;
     new_connection.module_identifier = module_identifier;
@@ -289,10 +336,10 @@ impl ModuleGraph {
     };
 
     // clone condition
-    if let Some(condition) = self.connection_to_condition.get(old_con) {
+    if let Some(condition) = self.connection_to_condition.get(&old_con_id) {
       self
         .connection_to_condition
-        .insert(new_connection, condition.clone());
+        .insert(new_connection_id, condition.clone());
     }
 
     self
@@ -463,6 +510,8 @@ impl ModuleGraph {
       module_identifier,
       active,
       conditional,
+      // Using a dummy id, set a meaningful id later
+      // ConnectionId(0),
     );
 
     let connection_id = if let Some(connection_id) = self.connections_map.get(&new_connection) {
@@ -478,7 +527,7 @@ impl ModuleGraph {
     if let Some(condition) = condition {
       self
         .connection_to_condition
-        .insert(new_connection, condition);
+        .insert(connection_id, condition);
     }
 
     self
@@ -975,14 +1024,22 @@ impl ModuleGraph {
 
   pub fn update_module(&mut self, dep_id: &DependencyId, module_id: &ModuleIdentifier) {
     let connection = self
-      .connection_by_dependency_mut(dep_id)
+      .connection_by_dependency(dep_id)
       .expect("should have connection");
+    let old_connection_id = *self
+      .connections_map
+      .get(connection)
+      .expect("should have connection id");
     if &connection.module_identifier == module_id {
       return;
     }
 
+    let connection = self
+      .connection_by_dependency_mut(dep_id)
+      .expect("should have connection");
     // clone connection
     let mut new_connection = *connection;
+
     new_connection.module_identifier = *module_id;
     // modify connection
     connection.set_active(false);
@@ -1020,11 +1077,11 @@ impl ModuleGraph {
     }
 
     // copy condition
-    let condition = self.connection_to_condition.get(&connection);
+    let condition = self.connection_to_condition.get(&old_connection_id);
     if let Some(condition) = condition {
       self
         .connection_to_condition
-        .insert(new_connection, condition.clone());
+        .insert(new_connection_id, condition.clone());
     }
   }
 
