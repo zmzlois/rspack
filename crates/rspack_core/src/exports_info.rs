@@ -1104,7 +1104,8 @@ impl ExportInfoId {
       return None;
     }
     export_info_mut.target.clear();
-    export_info_mut.target_is_set = true;
+    export_info_mut.max_target.clear();
+    export_info_mut.max_target_is_set = false;
     let updated_connection = update_original_connection(&target, mg);
 
     // shadowning `export_info_mut` to reduce `&mut ModuleGraph` borrow life time, since
@@ -1118,6 +1119,8 @@ impl ExportInfoId {
         priority: 0,
       },
     );
+
+    export_info_mut.target_is_set = true;
     Some(target)
   }
 
@@ -1575,6 +1578,8 @@ impl ExportInfo {
 
   pub fn unset_target(&mut self, key: &DependencyId) -> bool {
     if self.target.is_empty() {
+      self.max_target.clear();
+      self.max_target_is_set = false;
       false
     } else {
       match self.target.remove(&Some(*key)) {

@@ -4,6 +4,7 @@ use std::collections::VecDeque;
 use std::hash::Hasher;
 
 use indexmap::IndexSet;
+use linked_hash_set::LinkedHashSet;
 use rspack_core::concatenated_module::{
   is_harmony_dep_like, ConcatenatedInnerModule, ConcatenatedModule, RootModuleContext,
 };
@@ -31,14 +32,14 @@ enum Warning {
 struct ConcatConfiguration {
   pub root_module: ModuleIdentifier,
   runtime: Option<RuntimeSpec>,
-  modules: HashSet<ModuleIdentifier>,
+  modules: LinkedHashSet<ModuleIdentifier>,
   warnings: HashMap<ModuleIdentifier, Warning>,
 }
 
 #[allow(unused)]
 impl ConcatConfiguration {
   fn new(root_module: ModuleIdentifier, runtime: Option<RuntimeSpec>) -> Self {
-    let mut modules = HashSet::default();
+    let mut modules = LinkedHashSet::default();
     modules.insert(root_module);
 
     ConcatConfiguration {
@@ -71,7 +72,7 @@ impl ConcatConfiguration {
     sorted_warnings.into_iter().collect()
   }
 
-  fn get_modules(&self) -> &HashSet<ModuleIdentifier> {
+  fn get_modules(&self) -> &LinkedHashSet<ModuleIdentifier> {
     &self.modules
   }
 
@@ -81,14 +82,14 @@ impl ConcatConfiguration {
 
   fn rollback(&mut self, mut snapshot: usize) {
     let modules = &mut self.modules;
-    modules.retain(|_| {
-      if snapshot == 0 {
-        false
-      } else {
-        snapshot -= 1;
-        true
+    let len = modules.len();
+    let mut i = 0;
+    while i < len {
+      if (i >= snapshot) {
+        modules.pop_back();
       }
-    });
+      i += 1;
+    }
   }
 }
 
@@ -155,6 +156,7 @@ impl ModuleConcatenationPlugin {
   ) -> IndexSet<ModuleIdentifier> {
     let mut set = IndexSet::default();
     let module = mg.module_by_identifier(&mi).expect("should have module");
+    // let flag = mi.ends_with("node_modules/@ant-design/cssinjs/es/index.js");
     for d in module.get_dependencies() {
       let dep = d.get_dependency(mg);
       let is_harmony_import_like = is_harmony_dep_like(dep);
@@ -164,6 +166,10 @@ impl ModuleConcatenationPlugin {
       let Some(con) = mg.connection_by_dependency(d) else {
         continue;
       };
+      // if flag {
+      //   dbg!(&con);
+      //   dbg!(&con.is_target_active(mg, runtime));
+      // }
       if !con.is_target_active(mg, runtime) {
         continue;
       }
@@ -331,19 +337,26 @@ impl ModuleConcatenationPlugin {
       }
     }
     //
-    let mut incoming_modules: Vec<_> = incoming_connections_from_modules.keys().cloned().collect();
-
-    let other_chunk_modules: Vec<_> = incoming_modules
+    let mut incoming_modules = incoming_connections_from_modules
+      .keys()
+      .cloned()
+      .collect::<Vec<_>>();
+    let other_chunk_modules = incoming_modules
       .iter()
       .filter(|&origin_module| {
-        !chunk_graph
+        chunk_graph
           .get_module_chunks(config.root_module)
           .iter()
-          .all(|&chunk_ukey| chunk_graph.is_module_in_chunk(origin_module, chunk_ukey))
+          .any(|&chunk_ukey| !chunk_graph.is_module_in_chunk(origin_module, chunk_ukey))
       })
       .cloned()
-      .collect();
+      .collect::<Vec<_>>();
 
+    // if (module_id.contains("colors/es/index.js")) {
+    //   dbg!(&incoming_modules);
+    //   dbg!(config.root_module);
+    //   dbg!(&other_chunk_modules);
+    // }
     if !other_chunk_modules.is_empty() {
       let problem = {
         let mut names: Vec<_> = other_chunk_modules
@@ -520,7 +533,7 @@ impl ModuleConcatenationPlugin {
         possible_modules,
         candidates,
         failure_cache,
-        avoid_mutate_on_failure,
+        false,
         statistics,
       ) {
         if let Some(backup) = &backup {
@@ -547,12 +560,17 @@ impl Plugin for ModuleConcatenationPlugin {
     let mut relevant_modules = vec![];
     let mut possible_inners = HashSet::default();
     let start = logger.time("select relevant modules");
-    let module_id_list = compilation
+    let mut module_id_list = compilation
       .get_module_graph()
       .module_graph_modules()
       .keys()
       .copied()
       .collect::<Vec<_>>();
+    module_id_list.sort_by(|a, b| {
+      let ad = compilation.get_module_graph().get_depth(a);
+      let bd = compilation.get_module_graph().get_depth(b);
+      ad.cmp(&bd)
+    });
     for module_id in module_id_list {
       let mut can_be_root = true;
       let mut can_be_inner = true;
@@ -847,6 +865,7 @@ impl Plugin for ModuleConcatenationPlugin {
     let mut used_modules = HashSet::default();
 
     for config in concat_configurations {
+      // dbg!(&config);
       let root_module_id = config.root_module;
       if used_modules.contains(&root_module_id) {
         continue;
@@ -972,6 +991,7 @@ impl Plugin for ModuleConcatenationPlugin {
           let source_types = chunk_graph.get_chunk_module_source_types(&chunk_ukey, module);
 
           if source_types.len() == 1 {
+            // dbg!(&m);
             chunk_graph.disconnect_chunk_and_module(&chunk_ukey, *m);
           } else {
             let new_source_types = source_types
