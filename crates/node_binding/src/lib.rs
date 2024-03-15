@@ -5,8 +5,9 @@
 extern crate napi_derive;
 extern crate rspack_allocator;
 
-use std::pin::Pin;
-use std::sync::Mutex;
+use std::sync::atomic::AtomicI32;
+use std::sync::{Arc, Mutex};
+use std::{pin::Pin, sync::atomic::AtomicU32};
 
 use compiler::{Compiler, CompilerState, CompilerStateGuard};
 use napi::bindgen_prelude::*;
@@ -28,11 +29,52 @@ use rspack_binding_options::*;
 use rspack_binding_values::*;
 use rspack_tracing::chrome::FlushGuard;
 
-#[napi]
+#[napi(custom_finalize)]
 pub struct Rspack {
+  id: u32,
   js_plugin: JsHooksAdapterPlugin,
   compiler: Pin<Box<Compiler>>,
+  finalize_callbacks: *mut dyn FnOnce(),
+  ref_count: Arc<AtomicI32>,
   state: CompilerState,
+}
+
+static COMPILER_ID: AtomicU32 = AtomicU32::new(1);
+
+impl ObjectFinalize for Rspack {
+  fn finalize(mut self, _env: Env) -> Result<()> {
+    // println!(
+    //   "finalizing compiler {id} with ref count {count} before",
+    //   id = self.id,
+    //   count = self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+    // );
+    // let finalize_callbacks = unsafe { Box::from_raw(self.finalize_callbacks) };
+    // finalize_callbacks();
+    // println!(
+    //   "finalizing compiler {id} with ref count {count} after",
+    //   id = self.id,
+    //   count = self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+    // );
+    Ok(())
+  }
+}
+
+impl Drop for Rspack {
+  fn drop(&mut self) {
+    println!(
+      "dropping compiler {id} with ref count {count} before",
+      id = self.id,
+      count = self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+    );
+    let finalize_callbacks = unsafe { Box::from_raw(self.finalize_callbacks) };
+    finalize_callbacks();
+    println!(
+      "dropping compiler {id} with ref count {count} after",
+      id = self.id,
+      count = self.ref_count.load(std::sync::atomic::Ordering::Relaxed)
+    );
+    println!("dropping {}", self.id);
+  }
 }
 
 #[napi]
@@ -72,8 +114,11 @@ impl Rspack {
     );
 
     Ok(Self {
+      id: COMPILER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
       compiler: Box::pin(Compiler::from(rspack)),
       state: CompilerState::init(),
+      finalize_callbacks: Box::into_raw(Box::new(|| {})),
+      ref_count: Arc::new(AtomicI32::new(1)),
       js_plugin,
     })
   }
@@ -159,14 +204,46 @@ impl Rspack {
       return Err(concurrent_compiler_error());
     }
     let _guard = self.state.enter();
-    let mut compiler = reference.share_with(env, |s| {
-      // SAFETY: The mutable reference to `Compiler` is exclusive. It's guaranteed by the running state guard.
-      Ok(unsafe { s.compiler.as_mut().get_unchecked_mut() })
-    })?;
-    // SAFETY: `Compiler` will not be moved, as it's stored on the heap.
-    // `Compiler` is valid through the lifetime before it's closed by calling `Compiler.close()` or gc-ed.
+
+    // Leak the `SharedReference`.
+    // `SharedReference` was originally designed to be leaked if `Deref` or `DerefMut` is called.
+    // This means the original `SharedReference` will not likely to be dropped. The wrapped native
+    // instance is also not to be dropped until the `Reference` is dropped, which requires the
+    // `SharedReference` to be dropped, which contains the `Reference`.
+    // See [`napi::bindgen_prelude::Reference`]
+    let compiler_ref = Box::leak(Box::new(
+      reference.share_with(env, |s| Ok(&mut s.compiler))?,
+    ));
+    let ref_ptr = compiler_ref as *mut _;
+    self
+      .ref_count
+      .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+    let rc = self.ref_count.clone();
+    let id = self.id;
+
+    let prev_drop_fn = unsafe { Box::from_raw(self.finalize_callbacks) };
+    let drop_fn = Box::new(move || {
+      let r = rc.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+      println!("decreasing compiler {id} by 1, current {}", r - 1);
+      drop(unsafe { Box::from_raw(ref_ptr) });
+      prev_drop_fn();
+    });
+    self.finalize_callbacks = Box::into_raw(drop_fn);
+
+    // let mut compiler_ref = reference.share_with(env, |s| Ok(&mut s.compiler))?;
+
     f(
-      unsafe { std::mem::transmute::<&mut Compiler, &'static mut Compiler>(*compiler) },
+      unsafe {
+        // SAFETY:
+        // 1. The mutable reference to `Compiler` is exclusive. It's guaranteed by the running state guard.
+        // 2. `Compiler` will not be moved, as it's stored on the heap.
+        // 3. `Compiler` is valid through the lifetime before it's closed by calling `Compiler.close()` or gc-ed.
+        // 4. Caution: This **does** not guarantee that `Compiler` will not be moved in other crates.
+        std::mem::transmute::<&mut Compiler, &'static mut Compiler>(
+          compiler_ref.as_mut().get_unchecked_mut(),
+        )
+      },
       _guard,
     )
   }
