@@ -268,7 +268,8 @@ pub async fn run_builtin_loader(
 ) -> Result<JsLoaderContext> {
   use rspack_loader_runner::__private::loader::LoaderItemList;
 
-  let loader = get_builtin_loader(&builtin, options);
+  let loader = get_builtin_loader(&builtin, options)
+    .map_err(|err| napi::Error::from_reason(err.to_string()))?;
   let loader_item = loader.clone().into();
   let list = &[loader_item];
   let additional_data = {

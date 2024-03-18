@@ -3,7 +3,7 @@ use std::{fmt::Debug, path::Path, sync::Arc};
 use rspack_core::{
   BoxLoader, CompilerOptions, NormalModule, Plugin, ResolveResult, Resolver, BUILTIN_LOADER_PREFIX,
 };
-use rspack_error::{error, Result};
+use rspack_error::{error, miette::IntoDiagnostic, Result};
 
 use crate::{get_builtin_loader, JsLoaderAdapter, JsLoaderRunner};
 
@@ -71,7 +71,9 @@ impl Plugin for JsLoaderResolverPlugin {
     };
 
     if loader_request.starts_with(BUILTIN_LOADER_PREFIX) {
-      return Ok(Some(get_builtin_loader(loader_request, loader_options)));
+      return Ok(Some(
+        get_builtin_loader(loader_request, loader_options).into_diagnostic()?,
+      ));
     }
 
     let resolve_result = resolver

@@ -19,6 +19,7 @@ use rspack_core::{
 use rspack_error::error;
 use rspack_loader_react_refresh::REACT_REFRESH_LOADER_IDENTIFIER;
 use rspack_loader_swc::SWC_LOADER_IDENTIFIER;
+use rspack_napi::napi::Error;
 use rspack_napi::regexp::{JsRegExp, JsRegExpExt};
 use rspack_napi::threadsafe_function::ThreadsafeFunction;
 use serde::Deserialize;
@@ -28,24 +29,24 @@ pub use self::js_loader::JsLoaderAdapter;
 pub use self::js_loader::*;
 use crate::RawResolveOptions;
 
-pub fn get_builtin_loader(builtin: &str, options: Option<&str>) -> BoxLoader {
+pub fn get_builtin_loader(builtin: &str, options: Option<&str>) -> napi::Result<BoxLoader> {
   if builtin.starts_with(SWC_LOADER_IDENTIFIER) {
-    return Arc::new(
-      rspack_loader_swc::SwcLoader::new(
-        serde_json::from_str(options.unwrap_or("{}")).unwrap_or_else(|e| {
-          panic!("Could not parse builtin:swc-loader options:{options:?},error: {e:?}")
-        }),
-      )
-      .with_identifier(builtin.into()),
-    );
+    let options = serde_json::from_str(options.unwrap_or("{}")).map_err(|e| {
+      Error::from_reason(format!(
+        "Could not parse builtin:swc-loader options:{options:?},error: {e:?}"
+      ))
+    })?;
+    return Ok(Arc::new(
+      rspack_loader_swc::SwcLoader::new(options).with_identifier(builtin.into()),
+    ));
   }
   if builtin.starts_with(REACT_REFRESH_LOADER_IDENTIFIER) {
-    return Arc::new(
+    return Ok(Arc::new(
       rspack_loader_react_refresh::ReactRefreshLoader::default().with_identifier(builtin.into()),
-    );
+    ));
   }
 
-  unreachable!("Unexpected builtin loader: {builtin}")
+  Err(Error::from_reason("Unexpected builtin loader: {builtin}"))
 }
 
 /// `loader` is for both JS and Rust loaders.
