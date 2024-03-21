@@ -1,9 +1,9 @@
-use swc_core::ecma::ast::{ClassExpr, Ident, ObjectPatProp, Prop};
+use swc_core::ecma::ast::{BindingIdent, ClassExpr, Ident, ObjectPatProp, Prop};
 use swc_core::ecma::visit::{noop_visit_type, Visit, VisitWith};
 
 #[derive(Clone, Debug)]
 pub struct ConcatenatedModuleIdent {
-  pub id: Ident,
+  pub id: BindingIdent,
   pub shorthand: bool,
   pub is_class_expr_with_ident: bool,
 }
@@ -24,7 +24,7 @@ impl Visit for IdentCollector {
 
   fn visit_ident(&mut self, node: &Ident) {
     self.ids.push(ConcatenatedModuleIdent {
-      id: node.clone(),
+      id: node.clone().into(),
       shorthand: false,
       is_class_expr_with_ident: false,
     });
@@ -50,7 +50,7 @@ impl Visit for IdentCollector {
     match node {
       Prop::Shorthand(node) => {
         self.ids.push(ConcatenatedModuleIdent {
-          id: node.clone(),
+          id: node.clone().into(),
           shorthand: true,
           is_class_expr_with_ident: false,
         });
@@ -67,7 +67,7 @@ impl Visit for IdentCollector {
       && node.class.super_class.is_some()
     {
       self.ids.push(ConcatenatedModuleIdent {
-        id: ident.clone(),
+        id: ident.clone().into(),
         shorthand: false,
         is_class_expr_with_ident: true,
       });

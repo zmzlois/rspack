@@ -72,10 +72,13 @@ buildCommand
 	.option("-j", "build js packages")
 	.option("-r", "release")
 	.option("-f", "force")
-	.action(async function ({ a, b = a, j = a, r, f }) {
+	.option("-w", "watch")
+	.action(async function ({ a, b = a, j = a, r, f, w }) {
 		let mode = r ? "release" : "debug";
-		b && (await $`pnpm --filter @rspack/binding build:${mode}`);
-		j && (await $`pnpm --filter "@rspack/*" build ${f ? "--force" : ""}`);
+		b &&
+			(await $`pnpm --filter @rspack/binding ${w ? "watch" : "build"}:${mode}`);
+		j &&
+			(await $`pnpm --filter "@rspack/*" ${w ? "dev" : "build"} ${f ? "--force" : ""}`);
 	});
 
 watchCommand

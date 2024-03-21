@@ -156,6 +156,7 @@ impl JavascriptParserPlugin for JavaScriptParserPluginDrive {
     parser: &mut JavascriptParser,
     expr: &swc_core::ecma::ast::AssignExpr,
   ) -> Option<bool> {
+    // dbg!(expr);
     for plugin in &self.plugins {
       let res = plugin.assign(parser, expr);
       // `SyncBailHook`

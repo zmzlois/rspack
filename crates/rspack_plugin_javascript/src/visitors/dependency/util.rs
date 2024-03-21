@@ -4,8 +4,7 @@ use rspack_core::{ConstDependency, DependencyLocation, ErrorSpan, ExpressionInfo
 use rspack_error::{miette::Severity, DiagnosticKind, TraceableError};
 use rustc_hash::FxHashSet as HashSet;
 use swc_core::common::{SourceFile, Spanned};
-use swc_core::ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, MemberExpr};
-use swc_core::ecma::ast::{ObjectPat, ObjectPatProp, PropName};
+use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::Atom;
 
 pub fn collect_destructuring_assignment_properties(
@@ -41,6 +40,71 @@ pub(crate) mod expr_matcher {
   use swc_core::common::{EqIgnoreSpan, SourceMap};
   use swc_core::ecma::{ast::Ident, parser::parse_file_as_expr};
 
+  macro_rules! expr_like {
+    ($(($ident:ident,$ty:ty),)*) => {
+      use std::any::Any;
+      use std::fmt::Debug;
+      mod __ {
+        pub trait Sealed {}
+      }
+      pub trait DynEqIgnoreSpan {
+        fn dyn_eq_ignore_span(&self, other: &dyn Any) -> bool;
+      }
+      impl<T: EqIgnoreSpan + Any> DynEqIgnoreSpan for T {
+        fn dyn_eq_ignore_span(&self, other: &dyn Any) -> bool {
+          if let Some(other) = other.downcast_ref::<T>() {
+            self.eq_ignore_span(&other)
+          } else {
+            false
+          }
+        }
+      }
+      pub(crate) trait ExprLike: __::Sealed + DynEqIgnoreSpan + Debug + Send + Sync + Any {
+        fn as_expr(&self) -> Option<&Expr> {
+          None
+        }
+        $(
+          fn $ident(&self) -> Option<&$ty> {
+            None
+          }
+        )*
+      }
+      $(
+        impl ExprLike for $ty {
+          fn $ident(&self) -> Option<&$ty> {
+            Some(self)
+          }
+        }
+        impl __::Sealed for $ty {}
+      )*
+
+      impl ExprLike for Expr {
+        fn as_expr(&self) -> Option<&Expr> {
+          Some(self)
+        }
+
+        fn as_member(&self) -> Option<&MemberExpr> {
+          (*self).as_member()
+        }
+
+        fn as_this(&self) -> Option<&ThisExpr> {
+          (*self).as_this()
+        }
+
+        fn as_ident(&self) -> Option<&Ident> {
+          (*self).as_ident()
+        }
+      }
+      impl __::Sealed for Expr {}
+    }
+  }
+
+  expr_like! {
+    (as_member, MemberExpr),
+    (as_this, ThisExpr),
+    (as_ident, Ident),
+  }
+
   static PARSED_MEMBER_EXPR_CM: Lazy<Arc<SourceMap>> = Lazy::new(Default::default);
 
   // The usage of define_member_expr_matchers is limited in `member_expr_matcher`.
@@ -49,9 +113,9 @@ pub(crate) mod expr_matcher {
     ({
       $($fn_name:ident: $first:expr,)*
     }) => {
-          use super::Expr;
-          $(pub(crate) fn $fn_name(expr: &Expr) -> bool {
-            static TARGET: Lazy<Box<Expr>> = Lazy::new(|| {
+          use super::*;
+          $(pub(crate) fn $fn_name<E: ExprLike>(expr: &E) -> bool {
+            static TARGET: Lazy<Box<dyn ExprLike>> = Lazy::new(|| {
               let mut errors = vec![];
               let fm =
                  PARSED_MEMBER_EXPR_CM.new_source_file(swc_core::common::FileName::Anon, $first.to_string());
@@ -67,7 +131,7 @@ pub(crate) mod expr_matcher {
                 expr
             });
             Ident::within_ignored_ctxt(|| {
-              (&**TARGET).eq_ignore_span(expr)
+              (&**TARGET).dyn_eq_ignore_span(expr)
             })
           })+
 
@@ -183,7 +247,7 @@ pub fn is_require_call_start(expr: &Expr) -> bool {
       return callee
         .as_expr()
         .map(|callee| {
-          if expr_matcher::is_require(callee) || expr_matcher::is_module_require(callee) {
+          if expr_matcher::is_require(&**callee) || expr_matcher::is_module_require(&**callee) {
             true
           } else {
             is_require_call_start(callee)
