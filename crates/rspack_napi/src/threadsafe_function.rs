@@ -3,12 +3,10 @@ use std::{fmt::Debug, marker::PhantomData};
 use napi::{
   bindgen_prelude::{
     check_status, Either3, Either4, FromNapiValue, JsValuesTupleIntoVec, Promise, TypeName,
-    ValidateNapiValue,
+    Unknown, ValidateNapiValue,
   },
-  sys::{self, napi_env},
-  threadsafe_function::{
-    ErrorStrategy, ThreadsafeFunction as RawThreadsafeFunction, ThreadsafeFunctionCallMode,
-  },
+  sys,
+  threadsafe_function::{ThreadsafeFunction as RawThreadsafeFunction, ThreadsafeFunctionCallMode},
   Either, Env, JsUnknown, NapiRaw, Status, ValueType,
 };
 use oneshot::Receiver;
@@ -19,8 +17,7 @@ use crate::{JsCallback, NapiErrorExt};
 type ErrorResolver = dyn FnOnce(Env);
 
 pub struct ThreadsafeFunction<T: 'static, R> {
-  inner: RawThreadsafeFunction<T, ErrorStrategy::Fatal>,
-  env: napi_env,
+  inner: RawThreadsafeFunction<T, Unknown, /* CalleeHandled = */ false>,
   resolver: JsCallback<Box<ErrorResolver>>,
   _data: PhantomData<R>,
 }
@@ -35,7 +32,6 @@ impl<T: 'static, R> Clone for ThreadsafeFunction<T, R> {
   fn clone(&self) -> Self {
     Self {
       inner: self.inner.clone(),
-      env: self.env,
       resolver: self.resolver.clone(),
       _data: self._data,
     }
@@ -47,15 +43,10 @@ unsafe impl<T: 'static, R> Send for ThreadsafeFunction<T, R> {}
 
 impl<T: 'static + JsValuesTupleIntoVec, R> FromNapiValue for ThreadsafeFunction<T, R> {
   unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> napi::Result<Self> {
-    let inner = unsafe {
-      <RawThreadsafeFunction<T, ErrorStrategy::Fatal> as FromNapiValue>::from_napi_value(
-        env, napi_val,
-      )
-    }?;
+    let inner = unsafe { RawThreadsafeFunction::from_napi_value(env, napi_val) }?;
     check_status!(unsafe { sys::napi_unref_threadsafe_function(env, inner.raw()) })?;
     Ok(Self {
       inner,
-      env,
       resolver: JsCallback::new(env)?,
       _data: PhantomData,
     })
@@ -74,14 +65,13 @@ impl<T: 'static, R> ThreadsafeFunction<T, R> {
 
   fn call_with_return<D: 'static + FromNapiValue>(&self, value: T) -> Receiver<Result<D>> {
     let (tx, rx) = oneshot::channel::<Result<D>>();
-    let env = self.env;
     self
       .inner
-      .call_with_return_value_raw(value, ThreadsafeFunctionCallMode::NonBlocking, {
-        move |r: napi::Result<JsUnknown>| {
+      .call_with_return_value(value, ThreadsafeFunctionCallMode::NonBlocking, {
+        move |r: napi::Result<JsUnknown>, env| {
           let r = match r {
-            Err(err) => Err(err.into_rspack_error_with_detail(&unsafe { Env::from_raw(env) })),
-            Ok(o) => unsafe { D::from_napi_value(env, o.raw()) }.into_diagnostic(),
+            Err(err) => Err(err.into_rspack_error_with_detail(&env)),
+            Ok(o) => unsafe { D::from_napi_value(env.raw(), o.raw()) }.into_diagnostic(),
           };
           tx.send(r)
             .unwrap_or_else(|_| panic!("failed to send tsfn value"));

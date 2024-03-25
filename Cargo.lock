@@ -2132,6 +2132,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7843ec2de400bcbc6a6328c958dc38e5359da6e93e72e37bc5246bf1ae776389"
 
 [[package]]
+name = "napi"
+version = "3.0.0-alpha.0"
+dependencies = [
+ "anyhow",
+ "bitflags 2.5.0",
+ "ctor",
+ "napi-sys",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "napi-build"
 version = "2.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2139,9 +2153,7 @@ checksum = "2f9130fccc5f763cf2069b34a089a18f0d0883c66aceb81f2fad541a3d823c43"
 
 [[package]]
 name = "napi-derive"
-version = "2.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "05bb7c37e3c1dda9312fdbe4a9fc7507fca72288ba154ec093e2d49114e727ce"
+version = "3.0.0-alpha.0"
 dependencies = [
  "cfg-if",
  "convert_case",
@@ -2153,9 +2165,7 @@ dependencies = [
 
 [[package]]
 name = "napi-derive-backend"
-version = "1.0.62"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f785a8b8d7b83e925f5aa6d2ae3c159d17fe137ac368dc185bef410e7acdaeb4"
+version = "2.0.0-alpha.0"
 dependencies = [
  "convert_case",
  "once_cell",
@@ -2167,27 +2177,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "napi-h"
-version = "2.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8122073a4a01e851f0a9bbc4322b8f8cdf6f9faafc260f005cfd782098aff4fb"
-dependencies = [
- "anyhow",
- "bitflags 2.5.0",
- "ctor",
- "napi-derive",
- "napi-sys",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "napi-sys"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2503fa6af34dc83fb74888df8b22afe933b58d37daf7d80424b1c60c68196b8b"
 dependencies = [
  "libloading",
 ]
@@ -3058,8 +3049,8 @@ dependencies = [
  "better_scoped_tls",
  "derivative",
  "glob",
+ "napi",
  "napi-derive",
- "napi-h",
  "rspack_binding_values",
  "rspack_core",
  "rspack_error",
@@ -3113,8 +3104,8 @@ name = "rspack_binding_values"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "napi",
  "napi-derive",
- "napi-h",
  "rspack_core",
  "rspack_error",
  "rspack_identifier",
@@ -3219,9 +3210,9 @@ name = "rspack_fs_node"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "napi",
  "napi-build",
  "napi-derive",
- "napi-h",
  "rspack_fs",
  "rspack_napi",
 ]
@@ -3345,7 +3336,7 @@ dependencies = [
 name = "rspack_napi"
 version = "0.1.0"
 dependencies = [
- "napi-h",
+ "napi",
  "oneshot",
  "rspack_error",
  "rspack_regex",
@@ -3358,9 +3349,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "color-backtrace",
+ "napi",
  "napi-build",
  "napi-derive",
- "napi-h",
  "once_cell",
  "rspack_allocator",
  "rspack_binding_options",

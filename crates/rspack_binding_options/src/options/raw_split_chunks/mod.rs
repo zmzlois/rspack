@@ -2,6 +2,7 @@ mod raw_split_chunk_cache_group_test;
 mod raw_split_chunk_chunks;
 mod raw_split_chunk_name;
 
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use derivative::Derivative;
@@ -22,6 +23,7 @@ use self::raw_split_chunk_cache_group_test::normalize_raw_cache_group_test;
 use self::raw_split_chunk_cache_group_test::RawCacheGroupTest;
 use self::raw_split_chunk_chunks::{create_chunks_filter, Chunks};
 use self::raw_split_chunk_name::default_chunk_option_name;
+use crate::options::raw_split_chunks::raw_split_chunk_cache_group_test::COUNT;
 
 #[derive(Derivative, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,7 +69,7 @@ pub struct RawCacheGroupOptions {
   #[serde(skip_deserializing)]
   #[napi(ts_type = "RegExp | string | Function")]
   #[derivative(Debug = "ignore")]
-  pub test: Option<RawCacheGroupTest>,
+  pub test_haha: Option<RawCacheGroupTest>,
   pub filename: Option<String>,
   //   pub enforce: bool,
   pub id_hint: Option<String>,
@@ -188,9 +190,13 @@ impl From<RawSplitChunksOptions> for rspack_plugin_split_chunks::PluginOptions {
             key: v.key,
             name,
             priority: v.priority.unwrap_or(0) as f64,
-            test: v.test.map_or(default_cache_group_test(), |test| {
-              normalize_raw_cache_group_test(test)
-            }),
+            test: {
+              let a = COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+              println!("haha: {}, count: {}", v.test_haha.is_some(), a);
+              v.test_haha.map_or(default_cache_group_test(), |test| {
+                normalize_raw_cache_group_test(test)
+              })
+            },
             chunk_filter: v.chunks.map(create_chunks_filter).unwrap_or_else(|| {
               overall_chunk_filter
                 .clone()

@@ -290,15 +290,6 @@ export interface JsCodegenerationResults {
   map: Record<string, Record<string, JsCodegenerationResult>>
 }
 
-export interface JsCompatSource {
-  /** Whether the underlying data structure is a `RawSource` */
-  isRaw: boolean
-  /** Whether the underlying value is a buffer or string */
-  isBuffer: boolean
-  source: Buffer
-  map?: Buffer
-}
-
 export interface JsExecuteModuleArg {
   entry: string
   runtimeModules: Array<string>
@@ -652,7 +643,7 @@ export interface RawBundlerInfoPluginOptions {
 export interface RawCacheGroupOptions {
   key: string
   priority?: number
-  test?: RegExp | string | Function
+  testHaha?: RegExp | string | Function
   filename?: string
   idHint?: string
   /** What kind of chunks should be selected. */

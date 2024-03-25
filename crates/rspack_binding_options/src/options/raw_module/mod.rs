@@ -4,7 +4,7 @@ use std::fmt::Formatter;
 use std::{collections::HashMap, fmt::Debug, sync::Arc};
 
 use derivative::Derivative;
-use napi::bindgen_prelude::Either3;
+use napi::bindgen_prelude::{Either3, Either4, Either5, Null, Undefined};
 use napi::Either;
 use napi_derive::napi;
 use rspack_core::{
@@ -742,7 +742,8 @@ impl TryFrom<RawModuleOptions> for ModuleOptions {
   }
 }
 
-type RawModuleNoParseRule = Either3<String, JsRegExp, ThreadsafeFunction<String, Option<bool>>>;
+type RawModuleNoParseRule =
+  Either5<String, JsRegExp, ThreadsafeFunction<String, Option<bool>>, Undefined, Null>;
 type RawModuleNoParseRules = Either<RawModuleNoParseRule, Vec<RawModuleNoParseRule>>;
 
 struct RawModuleNoParseRuleWrapper(RawModuleNoParseRule);
@@ -761,9 +762,11 @@ fn js_func_to_no_parse_test_func(
 impl From<RawModuleNoParseRuleWrapper> for ModuleNoParseRule {
   fn from(x: RawModuleNoParseRuleWrapper) -> Self {
     match x.0 {
-      Either3::A(v) => Self::AbsPathPrefix(v),
-      Either3::B(v) => Self::Regexp(v.to_rspack_regex()),
-      Either3::C(v) => Self::TestFn(js_func_to_no_parse_test_func(v)),
+      Either5::A(v) => Self::AbsPathPrefix(v),
+      Either5::B(v) => Self::Regexp(v.to_rspack_regex()),
+      Either5::C(v) => Self::TestFn(js_func_to_no_parse_test_func(v)),
+      Either5::D(_) => unreachable!(),
+      Either5::E(_) => unreachable!(),
     }
   }
 }

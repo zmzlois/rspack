@@ -103,7 +103,7 @@ fn normalize_raw_test(raw: ThreadsafeFunction<String, bool>) -> TestFn {
 }
 
 #[derive(Deserialize)]
-#[napi(object, object_to_js = false)]
+#[napi(object, object_to_js = false, use_nullable = false)]
 pub struct RawSourceMapDevToolPluginOptions {
   #[serde(skip_deserializing)]
   #[napi(ts_type = "(false | null) | string | Function")]

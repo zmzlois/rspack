@@ -39,16 +39,13 @@ impl NapiRaw for JsRegExp {
 
 impl FromNapiValue for JsRegExp {
   unsafe fn from_napi_value(env: sys::napi_env, napi_val: sys::napi_value) -> Result<Self> {
-    // Safety: `JsObject::call_without_args` only leverages the `JsObject::raw` method.
-    // It's not necessarily have to be exactly an `JsObject` instance.
-    let js_object = unsafe { JsObject::from_raw_unchecked(env, napi_val) };
-    let ty = unsafe { NapiTypeRef::new(env, &js_object) }?;
+    let ty = unsafe { NapiTypeRef::from_napi_value(env, napi_val) }?;
     if !ty.is_regex()? {
       return Err(Error::new(
         Status::InvalidArg,
         format!(
           "Expect value to be '[object RegExp]', but received {}",
-          ty.get_type()?
+          ty.get_type()
         ),
       ));
     }

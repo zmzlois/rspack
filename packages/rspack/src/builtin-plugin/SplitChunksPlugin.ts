@@ -105,7 +105,7 @@ function toRawSplitChunksOptions(
 				const { test, name, chunks, ...passThrough } = group;
 				const rawGroup: RawCacheGroupOptions = {
 					key,
-					test: getTest(test),
+					testHaha: getTest(test),
 					name: getName(name),
 					chunks: getChunks(chunks),
 					...passThrough

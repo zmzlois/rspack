@@ -1,4 +1,6 @@
 #![feature(try_blocks)]
+#![allow(deprecated)]
+
 mod asset;
 mod chunk;
 mod chunk_graph;

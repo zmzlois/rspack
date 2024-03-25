@@ -54,7 +54,7 @@ struct RawBannerRulesWrapper(RawBannerRules);
 
 #[derive(Derivative)]
 #[derivative(Debug)]
-#[napi(object, object_to_js = false)]
+#[napi(object, object_to_js = false, use_nullable = false)]
 pub struct RawBannerPluginOptions {
   #[derivative(Debug = "ignore")]
   #[napi(ts_type = "string | ((...args: any[]) => any)")]

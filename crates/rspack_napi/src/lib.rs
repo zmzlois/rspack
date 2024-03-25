@@ -22,7 +22,7 @@ pub mod string {
   pub use crate::ext::js_string_ext::JsStringExt;
 }
 
-pub use crate::utils::downcast_into;
+pub use crate::utils::{downcast_into, NapiTypeRef};
 
 pub mod napi {
   pub use napi::*;

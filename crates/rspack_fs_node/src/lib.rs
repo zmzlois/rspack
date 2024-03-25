@@ -1,4 +1,5 @@
 #![allow(clippy::unwrap_in_result)]
+#![allow(deprecated)]
 
 use rspack_fs::cfg_async;
 
