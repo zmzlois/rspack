@@ -1,11 +1,18 @@
+use std::sync::Arc;
+
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use rspack_core::extract_member_expression_chain;
 use rspack_core::{ConstDependency, DependencyLocation, ErrorSpan, ExpressionInfoKind, SpanExt};
 use rspack_error::{miette::Severity, DiagnosticKind, TraceableError};
 use rustc_hash::FxHashSet as HashSet;
-use swc_core::common::{SourceFile, Spanned};
+use swc_core::common::util::take::Take;
+use swc_core::common::SourceMap;
+use swc_core::common::{BytePos, SourceFile, Span, Spanned};
 use swc_core::ecma::ast::*;
 use swc_core::ecma::atoms::Atom;
+
+use crate::visitors::expr_matcher::{is_module_exports, DynEqIgnoreSpan};
 
 pub fn collect_destructuring_assignment_properties(
   object_pat: &ObjectPat,
@@ -131,7 +138,11 @@ pub(crate) mod expr_matcher {
                 expr
             });
             Ident::within_ignored_ctxt(|| {
-              (&**TARGET).dyn_eq_ignore_span(expr)
+              match (&**TARGET, expr) {
+                (left, right) if let Some(left) = left.as_member() && let Some(right) = right.as_member() => left.dyn_eq_ignore_span(right),
+                (left, right) if let Some(left) = left.as_ident() && let Some(right) = right.as_ident() => left.dyn_eq_ignore_span(right),
+                _ => (&**TARGET).dyn_eq_ignore_span(expr)
+              }
             })
           })+
 
@@ -280,6 +291,60 @@ fn test_is_require_call_start() {
   test!("module.require.a().b", false);
   test!("module.require.a.b", false);
   test!("a.module.require.b", false);
+
+  static PARSED_MEMBER_EXPR_CM: Lazy<Arc<SourceMap>> = Lazy::new(Default::default);
+
+  fn is_module_exports<E: expr_matcher::ExprLike>(expr: &E) -> bool {
+    static TARGET: Lazy<Box<dyn expr_matcher::ExprLike>> = Lazy::new(|| {
+      let mut errors = vec![];
+      let fm = PARSED_MEMBER_EXPR_CM.new_source_file(
+        swc_core::common::FileName::Anon,
+        "module.exports".to_string(),
+      );
+      let expr = swc_core::ecma::parser::parse_file_as_expr(
+        &fm,
+        Default::default(),
+        Default::default(),
+        None,
+        &mut errors,
+      )
+      .unwrap_or_else(|_| {
+        panic!("ooops");
+      });
+      expr
+    });
+    Ident::within_ignored_ctxt(|| {
+      dbg!(&*TARGET, expr);
+      if let Some(left) = expr.as_member()
+        && let Some(right) = TARGET.as_member()
+      {
+        left.dyn_eq_ignore_span(right)
+      } else {
+        (&**TARGET).dyn_eq_ignore_span(expr)
+      }
+    })
+  }
+
+  let mut q = swc_core::quote!("module" as Expr);
+
+  // let q = MemberExpr {
+  //   span: Span::dummy(),
+  //   obj: Box::new(
+  //     Ident {
+  //       span: Span::from((BytePos(0), BytePos(2))),
+  //       sym: "module".into(),
+  //       optional: false,
+  //     }
+  //     .into(),
+  //   ),
+  //   prop: MemberProp::Ident(Ident {
+  //     span: Span::from((BytePos(10), BytePos(20))),
+  //     sym: "exports".into(),
+  //     optional: false,
+  //   }),
+  // };
+  let info = expr_matcher::is_module(&q);
+  dbg!(info);
 }
 
 pub fn expression_not_supported(

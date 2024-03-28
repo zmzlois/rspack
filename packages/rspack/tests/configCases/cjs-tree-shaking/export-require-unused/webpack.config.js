@@ -1,4 +1,6 @@
 module.exports = {
+	entry: "./index",
+	target: "node",
 	optimization: {
 		usedExports: true
 	},

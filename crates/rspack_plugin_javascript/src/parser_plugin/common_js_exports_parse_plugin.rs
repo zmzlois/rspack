@@ -62,7 +62,7 @@ fn is_module_exports_member_expr_start<E: ExprLike>(expr: &E) -> bool {
       false
     }
   }
-  dbg!(expr_matcher::is_module_exports(expr));
+  dbg!(expr, expr_matcher::is_module_exports(expr));
   walk_each(expr)
 }
 
