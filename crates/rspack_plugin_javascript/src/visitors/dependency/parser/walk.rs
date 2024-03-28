@@ -654,6 +654,7 @@ impl<'parser> JavascriptParser<'parser> {
   }
 
   fn walk_member_expression(&mut self, expr: &MemberExpr) {
+    dbg!(&expr);
     if let Some(expr_info) = self.get_member_expression_info(expr, AllowedMemberTypes::all()) {
       match expr_info {
         MemberExpressionInfo::Expression(expr_info) => {
@@ -673,6 +674,8 @@ impl<'parser> JavascriptParser<'parser> {
               drive.unhandled_expression_member_chain(this, &expr_info.root_info, expr)
             }),
           );
+
+          dbg!(&expr_info);
           return;
         }
         MemberExpressionInfo::Call(expr_info) => {

@@ -62,6 +62,7 @@ fn is_module_exports_member_expr_start<E: ExprLike>(expr: &E) -> bool {
       false
     }
   }
+  dbg!(expr_matcher::is_module_exports(expr));
   walk_each(expr)
 }
 
@@ -265,6 +266,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
     ident: &Ident,
     _for_name: &str,
   ) -> Option<bool> {
+    dbg!(&ident);
     if parser.is_module_ident(ident) {
       parser.append_module_runtime();
       // matches!( self.build_meta.exports_type, BuildMetaExportsType::Namespace)
@@ -341,6 +343,7 @@ impl JavascriptParserPlugin for CommonJsExportsParserPlugin {
         None
       }
     };
+    dbg!(&expr);
     if parser.is_exports_member_expr_start(expr) {
       // `exports.x.y`
       handle_remaining(parser, ExportsBase::Exports)

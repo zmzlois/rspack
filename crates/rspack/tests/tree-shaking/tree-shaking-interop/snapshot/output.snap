@@ -30,6 +30,7 @@ const a = "a";
 exports.test = 30;
 }),
 "./foo.js": (function (module, __unused_webpack_exports, __webpack_require__) {
+/* module decorator */ module = __webpack_require__.nmd(module);
 {
     const res = __webpack_require__(/*! ./a */"./a.js");
     module.exports = res;
