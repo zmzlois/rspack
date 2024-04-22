@@ -9,6 +9,7 @@
     "x": "zx x.mjs",
     "dev": "pnpm --filter @rspack/cli run dev",
     "clean": "pnpm --filter @rspack/cli run clean",
+    "check-dependency-version": "check-dependency-version-consistency . --dep-type devDependencies",
     "build:js": "pnpm --filter \"@rspack/core\" build --force && pnpm --filter \"@rspack/*\" --filter \"!@rspack/core\" build --force",
     "build:cli:debug": "npm run build:binding:debug && npm run build:js",
     "build:cli:release": "npm run build:binding:release && npm run build:js",
@@ -49,6 +50,7 @@
     "pnpm": "8.14.3"
   },
   "devDependencies": {
+    "check-dependency-version-consistency": "^4.1.0",
     "@microsoft/api-extractor": "^7.43.1",
     "@rspack/cli": "workspace:*",
     "@taplo/cli": "^0.7.0",
