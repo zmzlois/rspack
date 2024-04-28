@@ -11,14 +11,12 @@ module.exports = {
 			plugins: [
 				{
 					apply(compiler) {
-						compiler.hooks.assetEmitted.tap("plugin", (filename, info) => {
-							return context.snapped(async (filename, info) => {
-								if (filename === "main.js") {
-									assert(info.targetPath.includes("main.js"));
-									hasMainJs = true;
-								}
-							})(filename, info);
-						});
+						compiler.hooks.assetEmitted.tap("plugin", context.snapped((filename, info) => {
+							if (filename === "main.js") {
+								assert(info.targetPath.includes("main.js"));
+								hasMainJs = true;
+							}
+						}));
 					}
 				}
 			]

@@ -1,3 +1,7 @@
+const { createFsFromVolume, Volume } = require("memfs");
+
+const outputFileSystem = createFsFromVolume(new Volume());
+
 const assert = require("assert");
 
 const PLUGIN_NAME = "test-plugin";
@@ -29,8 +33,16 @@ class Plugin {
 	}
 }
 
-/**@type {import('@rspack/cli').Configuration}*/
 module.exports = {
-	context: __dirname,
-	plugins: [new Plugin()]
+	options(context) {
+		return {
+			plugins: [
+				new Plugin()
+			]
+		};
+	},
+	async compiler(context, compiler) {
+		compiler.outputFileSystem = outputFileSystem;
+	},
+	async check() {}
 };

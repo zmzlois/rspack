@@ -818,7 +818,7 @@ var __webpack_exports__ = __webpack_require__("600");
 ]
 ```
 
-## output (Promise resolved)
+## output
 
 ```javascript
 undefined

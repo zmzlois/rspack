@@ -208,7 +208,7 @@ describe("Hook", () => {
 
 				let file = path.join(caseDir, cat.name, name, "test.js");
 				const caseConfig = require(file);
-				it(caseConfig.description, async () => {
+				it(caseConfig.description || `should call ${name} correctly`, async () => {
 					await run(
 						file,
 						path.basename(name.slice(0, name.indexOf(path.extname(name)))),
