@@ -12,8 +12,8 @@ use rspack_core::{
   filter_runtime, merge_runtime, runtime_to_string, ApplyContext, Compilation,
   CompilationOptimizeChunkModules, CompilerContext, CompilerOptions, ExportInfoProvided,
   ExtendedReferencedExport, LibIdentOptions, Logger, Module, ModuleExt, ModuleGraph,
-  ModuleGraphModule, ModuleIdentifier, MutableModuleGraph, Plugin, PluginContext, ProvidedExports,
-  RuntimeCondition, RuntimeSpec, SourceType,
+  ModuleGraphConnection, ModuleGraphModule, ModuleIdentifier, MutableModuleGraph, Plugin,
+  PluginContext, ProvidedExports, RuntimeCondition, RuntimeSpec, SourceType,
 };
 use rspack_error::Result;
 use rspack_hook::{plugin, plugin_hook};
@@ -260,10 +260,22 @@ impl ModuleConcatenationPlugin {
       return Some(problem);
     }
 
-    let get_incoming_connections_by_origin_module =
-      module_graph.get_incoming_connections_by_origin_module(module_id);
+    let connections = module_graph
+      .module_graph_module_by_identifier(module_id)
+      .expect("should have mgm")
+      .incoming_connections();
 
-    let incoming_connections = get_incoming_connections_by_origin_module;
+    let mut incoming_connections: HashMap<Option<ModuleIdentifier>, Vec<&ModuleGraphConnection>> =
+      HashMap::default();
+    for connection_id in connections {
+      let con = module_graph
+        .connection_by_connection_id(connection_id)
+        .expect("should have connection");
+      incoming_connections
+        .entry(con.original_module_identifier)
+        .or_default()
+        .push(con);
+    }
 
     if let Some(incoming_connections_from_non_modules) = incoming_connections.get(&None) {
       let active_non_modules_connections = incoming_connections_from_non_modules

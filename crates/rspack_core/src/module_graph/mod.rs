@@ -239,32 +239,6 @@ impl<'a> ModuleGraph<'a> {
     res
   }
 
-  pub fn get_incoming_connections_by_origin_module(
-    &self,
-    module_id: &ModuleIdentifier,
-  ) -> HashMap<Option<ModuleIdentifier>, Vec<ModuleGraphConnection>> {
-    let connections = self
-      .module_graph_module_by_identifier(module_id)
-      .expect("should have mgm")
-      .incoming_connections();
-
-    let mut map: HashMap<Option<ModuleIdentifier>, Vec<ModuleGraphConnection>> = HashMap::default();
-    for connection_id in connections {
-      let con = self
-        .connection_by_connection_id(connection_id)
-        .expect("should have connection");
-      match map.entry(con.original_module_identifier) {
-        Entry::Occupied(mut occ) => {
-          occ.get_mut().push(con.clone());
-        }
-        Entry::Vacant(vac) => {
-          vac.insert(vec![con.clone()]);
-        }
-      }
-    }
-    map
-  }
-
   /// Remove a connection and return connection origin module identifier and dependency
   ///
   /// force will completely remove dependency, and you will not regenerate it from dependency_id
