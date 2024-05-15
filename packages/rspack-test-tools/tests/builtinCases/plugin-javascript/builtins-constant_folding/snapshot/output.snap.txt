@@ -3,7 +3,10 @@
 "./development.js": (function () {
 }),
 "./index.js": (function (__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
-__webpack_require__("./development.js");
+if ('development' === "development") __webpack_require__("./development.js");
+else __webpack_require__("./production.js");
+}),
+"./production.js": (function () {
 }),
 
 },function(__webpack_require__) {

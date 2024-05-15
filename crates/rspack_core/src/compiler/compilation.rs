@@ -186,6 +186,7 @@ pub struct Compilation {
   pub modified_files: HashSet<PathBuf>,
   pub removed_files: HashSet<PathBuf>,
   make_artifact: MakeArtifact,
+  pub value_cache_versions: HashMap<String, String>,
 }
 
 impl Compilation {
@@ -272,6 +273,7 @@ impl Compilation {
       make_artifact: Default::default(),
       modified_files,
       removed_files,
+      value_cache_versions: Default::default(),
     }
   }
 

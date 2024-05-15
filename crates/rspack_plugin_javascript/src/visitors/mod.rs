@@ -8,7 +8,7 @@ use rspack_error::miette::Diagnostic;
 use rspack_error::{AnyhowError, Result};
 use swc_core::common::comments::Comments;
 use swc_core::common::{chain, Mark};
-use swc_core::ecma::transforms::base::pass::Optional;
+use swc_core::ecma::transforms::base::pass::{noop, Optional};
 use swc_core::ecma::visit::Fold;
 
 pub use self::dependency::*;

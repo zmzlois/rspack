@@ -263,7 +263,10 @@ impl<'parser> JavascriptParser<'parser> {
 
     if module_type.is_js_auto() || module_type.is_js_dynamic() || module_type.is_js_esm() {
       if !compiler_options.builtins.provide.is_empty() {
-        plugins.push(Box::new(parser_plugin::ProviderPlugin));
+        plugins.push(Box::new(parser_plugin::ProviderPlugin::default()));
+      }
+      if !compiler_options.builtins.define.is_empty() {
+        plugins.push(Box::new(parser_plugin::DefinePlugin));
       }
       plugins.push(Box::new(parser_plugin::WebpackIsIncludedPlugin));
       plugins.push(Box::new(parser_plugin::ExportsInfoApiPlugin));
@@ -505,6 +508,7 @@ impl<'parser> JavascriptParser<'parser> {
       members,
       member_ranges,
     } = Self::extract_member_expression_chain(expr);
+    // println!("{object:#?}, {members:#?}, {member_ranges:#?}");
     self._get_member_expression_info(object, members, member_ranges, allowed_types)
   }
 
