@@ -88,6 +88,7 @@ allow = [
   "MPL-2.0",
   "0BSD",
   "Unicode-DFS-2016",
+  "Unicode-3.0",
   "BSL-1.0",
 ]
 # List of explicitly disallowed licenses
